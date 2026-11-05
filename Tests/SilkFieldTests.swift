@@ -70,4 +70,31 @@ import SwiftUI
         XCTAssertEqual(before, after, "Removing the input shield must not move, reset or replace the silk")
         XCTAssertEqual(after, try pixels(at: 798), "The final opening frame must be the normal timeline field")
     }
+
+    func testEndingOpeningDoesNotChangeAnyWordmarkPixel() throws {
+        let opening = OpeningPresentation()
+        opening.titleFrame = CGRect(x: 0, y: 40, width: 402, height: 44)
+        opening.axisFrame = CGRect(x: 0, y: 150, width: 402, height: 530)
+        opening.wordmarkTravel = 0; opening.wordmarkOpacity = 1
+        opening.contentOpacity = 0.25
+        func render() throws -> [UInt8] {
+            let view = OpeningWordmark(presentation: opening).frame(width: 402, height: 300)
+                .background(AfterimageStyle.background).environment(\.colorScheme, .dark)
+            let renderer = ImageRenderer(content: view); renderer.scale = 1
+            let image = try XCTUnwrap(renderer.uiImage?.cgImage)
+            var bytes = [UInt8](repeating: 0, count: 402 * 300 * 4)
+            let context = try XCTUnwrap(CGContext(data: &bytes, width: 402, height: 300, bitsPerComponent: 8,
+                bytesPerRow: 402 * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(image, in: CGRect(x: 0, y: 0, width: 402, height: 300))
+            return bytes
+        }
+        let landed = try render()
+        XCTAssertTrue(stride(from: 0, to: landed.count, by: 4).contains { landed[$0] > 100 },
+                      "The comparison must contain a visible wordmark")
+        opening.contentOpacity = 1
+        XCTAssertEqual(landed, try render(), "Revealing controls must not crossfade or replace the title")
+        opening.enterBackground()
+        XCTAssertEqual(landed, try render(), "Removing the launch shield must leave every title pixel in place")
+    }
 }

@@ -64,7 +64,7 @@ extension EnvironmentValues {
         ending = Task { @MainActor in
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.85)) {
                 spread = 1; silkOpacity = 1; wordmarkTravel = 0
-                wordmarkOpacity = reduceMotion ? 0 : 1
+                wordmarkOpacity = 1
             }
             if !reduceMotion { try? await Task.sleep(for: .milliseconds(850)) }
             guard !Task.isCancelled else { return }
@@ -80,41 +80,21 @@ extension EnvironmentValues {
         ending?.cancel(); ending = nil
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) {
-            spread = 1; silkOpacity = 1; contentOpacity = 1; wordmarkTravel = 0; wordmarkOpacity = 0
+            spread = 1; silkOpacity = 1; contentOpacity = 1; wordmarkTravel = 0; wordmarkOpacity = 1
             finishing = true; isBlocking = false
         }
     }
 }
 
-/// The only moving overlay is the wordmark; the actual silk never switches views.
+/// The wordmark belongs to the library for its entire lifetime, including after launch.
+/// Only this input shield and skip control are removed when launch finishes.
 struct OpeningView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     let presentation: OpeningPresentation
 
     var body: some View {
-        GeometryReader { geometry in
             Color.clear.contentShape(Rectangle()).onTapGesture { }
-                .onAppear { presentation.overlayFrame = geometry.frame(in: .global) }
-                .onChange(of: geometry.frame(in: .global)) { _, frame in presentation.overlayFrame = frame }
-                .overlay {
-                    if let surface = presentation.overlayFrame,
-                       let axis = presentation.axisFrame, let title = presentation.titleFrame {
-                        let worldX = surface.midX - axis.minX
-                        let start = axis.minY + TimelineLayout.y(at: worldX) * axis.height / 530 - 66
-                        let y = title.midY + (start - title.midY) * presentation.wordmarkTravel
-                        AfterimageWordmark(progress: presentation.wordmarkSheen * presentation.wordmarkTravel
-                                           + presentation.readingProgress * (1 - presentation.wordmarkTravel))
-                            .frame(width: 190, height: 32)
-                            .scaleEffect(1 + 0.32 * presentation.wordmarkTravel)
-                            .brightness(0.08 * presentation.wordmarkTravel)
-                            .shadow(color: AfterimageStyle.amber.opacity(0.5 * presentation.wordmarkTravel),
-                                    radius: 9 * presentation.wordmarkTravel)
-                            .position(x: title.midX - surface.minX, y: y - surface.minY)
-                            .opacity(presentation.wordmarkOpacity * (1 - presentation.contentOpacity))
-                            .accessibilityHidden(true).allowsHitTesting(false)
-                    }
-                }
             .overlay(alignment: .bottomTrailing) {
                 Button("跳过") { presentation.finish(reduceMotion: reduceMotion) }
                     .font(.footnote).foregroundStyle(.secondary)
@@ -133,7 +113,38 @@ struct OpeningView: View {
             .onChange(of: reduceMotion) { _, enabled in
                 if enabled { presentation.finish(reduceMotion: true) }
             }
+    }
+}
+
+/// A single render node moves to the title slot and remains there during normal reading.
+/// Content reveal never fades it into another copy hosted by the navigation bar.
+struct OpeningWordmark: View {
+    let presentation: OpeningPresentation
+
+    var body: some View {
+        GeometryReader { geometry in
+            let surface = geometry.frame(in: .global)
+            if let title = presentation.titleFrame {
+                let axis = presentation.axisFrame ?? surface
+                let worldX = surface.midX - axis.minX
+                let start = axis.minY + TimelineLayout.y(at: worldX) * axis.height / 530 - 66
+                let travel = presentation.wordmarkTravel
+                let y = title.midY + (start - title.midY) * travel
+                AfterimageWordmark(progress: presentation.wordmarkSheen * travel
+                                   + presentation.readingProgress * (1 - travel))
+                    .frame(width: 190, height: 32)
+                    .scaleEffect(1 + 0.32 * travel)
+                    .brightness(0.08 * travel)
+                    .shadow(color: AfterimageStyle.amber.opacity(0.5 * travel), radius: 9 * travel)
+                    .position(x: title.midX - surface.minX, y: y - surface.minY)
+                    .opacity(presentation.isBlocking ? presentation.wordmarkOpacity : 1)
+                    .accessibilityHidden(presentation.isBlocking)
+            }
+            Color.clear
+                .onAppear { presentation.overlayFrame = surface }
+                .onChange(of: surface) { _, frame in presentation.overlayFrame = frame }
         }
+        .allowsHitTesting(false)
     }
 }
 
@@ -147,7 +158,6 @@ struct OpeningGeometryProbe: UIViewRepresentable {
     func makeUIView(context: Context) -> Marker { Marker() }
     func updateUIView(_ view: Marker, context: Context) {
         view.measured = { frame in
-            guard presentation.isBlocking else { return }
             switch target {
             case .title:
                 if presentation.titleFrame != frame { presentation.titleFrame = frame }

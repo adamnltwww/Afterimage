@@ -74,7 +74,9 @@ struct MemoryLibraryView: View {
                     }
                 }
                 ToolbarItem(placement: .principal) {
-                    ReadingPositionWordmark(progress: readingPosition, empty: records.isEmpty).frame(width: 190, height: 32)
+                    ReadingPositionWordmark(progress: readingPosition, empty: records.isEmpty,
+                                            externalWordmark: !isDemo && opening != nil)
+                        .frame(width: 190, height: 32)
                 }
                 if #available(iOS 26.0, *) {
                     ToolbarItem(placement: .topBarTrailing) { addButton }
@@ -138,6 +140,9 @@ struct MemoryLibraryView: View {
             } message: { Text(errorMessage ?? "") }
         }
         .onAppear { context.autosaveEnabled = false }
+        .overlay {
+            if !isDemo, let opening { OpeningWordmark(presentation: opening) }
+        }
     }
 
 

@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ios-${{ github.ref }}
+  group: ios-${{ github.ref }}-wordmark
   cancel-in-progress: true
 
 jobs:

@@ -11,6 +11,8 @@ final class OpeningAnimationTests: XCTestCase {
         waitForExpectations(timeout: 15)
         XCTAssertFalse(app.buttons["opening.skip"].exists)
         XCTAssertTrue(app.buttons["memory.add"].isHittable)
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "timeline.progress").count, 1,
+                       "The landing must leave exactly one persistent wordmark")
         capture(app, "opening-landed-on-real-timeline")
         app.buttons["timeline.index"].tap()
         XCTAssertTrue(app.navigationBars["时间索引"].waitForExistence(timeout: 5))

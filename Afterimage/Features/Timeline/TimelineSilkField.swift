@@ -102,13 +102,18 @@ struct ReadingPositionWordmark: View {
     @Environment(\.openingPresentation) private var opening
     let progress: TimelineReadProgress
     let empty: Bool
+    var externalWordmark = false
     var body: some View {
-        AfterimageWordmark(progress: empty ? 0 : progress.value)
-            .background {
-                if let opening, opening.isBlocking {
-                    OpeningGeometryProbe(presentation: opening, target: .title, readingProgress: empty ? 0 : progress.value)
+        if externalWordmark, let opening {
+            // Reserve the native title slot without creating a second visible wordmark.
+            Color.clear.frame(width: 190, height: 32)
+                .background {
+                    OpeningGeometryProbe(presentation: opening, target: .title,
+                                         readingProgress: empty ? 0 : progress.value)
                 }
-            }
-            .opacity(opening?.contentOpacity ?? 1)
+                .accessibilityHidden(true)
+        } else {
+            AfterimageWordmark(progress: empty ? 0 : progress.value)
+        }
     }
 }
