@@ -1,0 +1,165 @@
+name: iOS unsigned device build
+on:
+  push:
+    branches: [main, 'phase5/**', 'codex/silk-physics']
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: 'Run simulator checks after uploading the IPA'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve app version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_PREFIX=$(tr -d '\r\n' < VERSION)
+          [[ "$VERSION_PREFIX" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
+          if [[ "$VERSION_PREFIX" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "APP_VERSION=$VERSION_PREFIX" >> "$GITHUB_ENV"
+          else
+            echo "APP_VERSION=$VERSION_PREFIX.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          fi
+      - name: Continue app build numbering
+        shell: bash
+        run: echo "APP_BUILD=$((GITHUB_RUN_NUMBER + 83))" >> "$GITHUB_ENV"
+      - name: Record toolchain
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+      - name: Generate Xcode project
+        run: |
+          mkdir -p build
+          command -v xcodegen || brew install xcodegen
+          xcodegen generate
+      - name: Verify interaction and surface fixes before packaging
+        if: ${{ env.APP_VERSION == '0.9.2' || env.APP_VERSION == '0.9.3' || env.APP_VERSION == '0.9.4' || env.APP_VERSION == '0.9.5' || env.APP_VERSION == '0.9.6' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if "iPhone" in x["name"]))')
+          xcrun simctl boot "$DEVICE_ID" || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          xcrun simctl io "$DEVICE_ID" recordVideo --codec=h264 build/polish.mov &
+          RECORD_PID=$!
+          trap 'kill -INT "$RECORD_PID" 2>/dev/null || true; wait "$RECORD_PID" 2>/dev/null || true' EXIT
+          UI_CHECKS=(-only-testing:AfterimageUITests/SurfacePolishTests)
+          if [ "$APP_VERSION" = '0.9.5' ]; then
+            UI_CHECKS=(-only-testing:AfterimageUITests/OpeningAnimationTests)
+          fi
+          if [ "$APP_VERSION" = '0.9.6' ]; then
+            UI_CHECKS+=(-only-testing:AfterimageUITests/OpeningAnimationTests)
+          fi
+          xcodebuild -project Afterimage.xcodeproj -scheme Afterimage \
+            -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_ID" \
+            -derivedDataPath build/Simulator -resultBundlePath build/Polish.xcresult \
+            -parallel-testing-enabled NO \
+            -retry-tests-on-failure -test-iterations 2 \
+            -only-testing:AfterimageTests "${UI_CHECKS[@]}" \
+            CODE_SIGNING_ALLOWED=NO MARKETING_VERSION="$APP_VERSION" \
+            CURRENT_PROJECT_VERSION="$APP_BUILD" test 2>&1 | tee build/polish.log
+      - name: Export focused visual verification
+        if: ${{ always() && (env.APP_VERSION == '0.9.2' || env.APP_VERSION == '0.9.3' || env.APP_VERSION == '0.9.4' || env.APP_VERSION == '0.9.5' || env.APP_VERSION == '0.9.6') }}
+        run: |
+          if [ -d build/Polish.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/Polish.xcresult --output-path build/polish-screenshots || true
+          fi
+      - name: Upload focused visual verification
+        if: ${{ always() && (env.APP_VERSION == '0.9.2' || env.APP_VERSION == '0.9.3' || env.APP_VERSION == '0.9.4' || env.APP_VERSION == '0.9.5' || env.APP_VERSION == '0.9.6') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: polish-verification-${{ env.APP_BUILD }}
+          path: |
+            build/polish.log
+            build/polish.mov
+            build/polish-screenshots
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Build for physical iPhone without signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          xcodebuild -project Afterimage.xcodeproj -scheme Afterimage \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="$APP_BUILD" build 2>&1 | tee build/xcodebuild.log
+      - name: Package unsigned IPA for local re-signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP=build/DerivedData/Build/Products/Release-iphoneos/Afterimage.app
+          ls -la build/DerivedData/Build/Products/Release-iphoneos/
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist"
+          test -d "$APP"
+          test -f "$APP/Afterimage"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")" = "$APP_VERSION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")" = "$APP_BUILD"
+          xcrun lipo "$APP/Afterimage" -info
+          xcrun lipo "$APP/Afterimage" -verify_arch arm64
+          mkdir -p build/package/Payload
+          cp -R "$APP" build/package/Payload/
+          cd build/package
+          /usr/bin/zip -qry ../Afterimage-unsigned.ipa Payload
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Afterimage-${{ env.APP_VERSION }}-build-${{ env.APP_BUILD }}
+          path: build/Afterimage-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+      - name: Test local persistence and isolated demo on simulator
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_tests }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if "iPhone" in x["name"]))')
+          xcodebuild -project Afterimage.xcodeproj -scheme Afterimage \
+            -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_ID" \
+            -derivedDataPath build/Simulator -resultBundlePath build/Tests.xcresult \
+            CODE_SIGNING_ALLOWED=NO MARKETING_VERSION="$APP_VERSION" \
+            CURRENT_PROJECT_VERSION="$APP_BUILD" \
+            -retry-tests-on-failure -test-iterations 2 test 2>&1 | tee build/tests.log
+      - name: Export UI test screenshots
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.run_tests }}
+        run: |
+          if [ -d build/Tests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/Tests.xcresult --output-path build/screenshots || true
+          fi
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ env.APP_BUILD }}
+          path: |
+            build/xcodebuild.log
+            build/tests.log
+            build/Tests.xcresult
+            build/screenshots
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload UI screenshots
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.run_tests }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots-${{ env.APP_BUILD }}
+          path: |
+            build/screenshots/*.png
+            build/screenshots/manifest.json
+          if-no-files-found: ignore
+          retention-days: 7
