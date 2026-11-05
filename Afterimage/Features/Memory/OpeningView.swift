@@ -178,22 +178,48 @@ struct OpeningGeometryProbe: UIViewRepresentable {
         func refresh() {
             DispatchQueue.main.async { [weak self] in
                 guard let self, let window = self.window, self.bounds.width > 0, self.bounds.height > 0 else { return }
-                // The text's representable can retain a SwiftUI projection offset.
-                // The enclosing native navigation bar is the physical landing surface.
+                // The bar can include space above/below its actual controls on iOS 26.
+                // Land on the controls' centerline, rather than the whole bar's midpoint.
                 var ancestor = self.superview
                 while let view = ancestor {
                     if let bar = view as? UINavigationBar {
-                        self.measured?(bar.convert(bar.bounds, to: window))
+                        self.measured?(Self.titleSlot(in: bar, window: window))
                         return
                     }
                     ancestor = view.superview
                 }
                 if let bar = Self.navigationBar(in: window) {
-                    self.measured?(bar.convert(bar.bounds, to: window))
+                    self.measured?(Self.titleSlot(in: bar, window: window))
                 } else {
                     self.measured?(CGRect(x: 0, y: window.safeAreaInsets.top, width: window.bounds.width, height: 44))
                 }
             }
+        }
+        private static func titleSlot(in bar: UINavigationBar, window: UIWindow) -> CGRect {
+            let bounds = bar.convert(bar.bounds, to: window)
+            let items = (bar.topItem?.leftBarButtonItems ?? []) + (bar.topItem?.rightBarButtonItems ?? [])
+            let customFrames = items.compactMap { $0.customView }.map { $0.convert($0.bounds, to: window) }
+                .filter { !$0.isEmpty && bounds.intersects($0) }
+            let frames = customFrames.isEmpty ? controlFrames(in: bar, window: window, barBounds: bounds) : customFrames
+            let centerY: CGFloat
+            if !frames.isEmpty {
+                centerY = frames.map(\.midY).reduce(0, +) / CGFloat(frames.count)
+            } else if let title = bar.topItem?.titleView, !title.bounds.isEmpty {
+                centerY = title.convert(title.bounds, to: window).midY
+            } else {
+                centerY = bounds.midY
+            }
+            return CGRect(x: bounds.minX, y: centerY - 16, width: bounds.width, height: 32)
+        }
+        private static func controlFrames(in view: UIView, window: UIWindow, barBounds: CGRect) -> [CGRect] {
+            if view is UIControl {
+                let frame = view.convert(view.bounds, to: window)
+                let atSide = abs(frame.midX - barBounds.midX) > barBounds.width * 0.2
+                if !view.isHidden, frame.height >= 20, frame.height <= 80, atSide, barBounds.intersects(frame) {
+                    return [frame]
+                }
+            }
+            return view.subviews.flatMap { controlFrames(in: $0, window: window, barBounds: barBounds) }
         }
         private static func navigationBar(in view: UIView) -> UINavigationBar? {
             if let bar = view as? UINavigationBar, !bar.isHidden { return bar }

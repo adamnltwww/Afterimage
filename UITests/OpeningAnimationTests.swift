@@ -13,6 +13,9 @@ final class OpeningAnimationTests: XCTestCase {
         XCTAssertTrue(app.buttons["memory.add"].isHittable)
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "timeline.progress").count, 1,
                        "The landing must leave exactly one persistent wordmark")
+        let wordmark = app.descendants(matching: .any).matching(identifier: "timeline.progress").firstMatch
+        XCTAssertEqual(wordmark.frame.midY, app.buttons["memory.add"].frame.midY, accuracy: 2.5,
+                       "The title must align with the actual toolbar controls, not the full navigation bar")
         capture(app, "opening-landed-on-real-timeline")
         app.buttons["timeline.index"].tap()
         XCTAssertTrue(app.navigationBars["时间索引"].waitForExistence(timeout: 5))
