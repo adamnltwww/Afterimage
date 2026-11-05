@@ -142,14 +142,20 @@ struct MemoryLibraryView: View {
 
 
     private var moreButton: some View {
-        Button { showMore = true } label: { Image(systemName: "ellipsis").font(.system(size: 20)) }
+        Button { showMore = true } label: {
+            Image(systemName: "ellipsis").font(.system(size: 20))
+                .frame(width: 22, height: 22)
+        }
             .afterimageControl(icon: true)
             .opacity(opening?.contentOpacity ?? 1)
             .accessibilityLabel("更多选项").accessibilityIdentifier("library.more")
     }
 
     private var addButton: some View {
-        Button { createMemory = true } label: { Image(systemName: "plus").font(.system(size: 22, weight: .regular)) }
+        Button { createMemory = true } label: {
+            Image(systemName: "plus").font(.system(size: 22, weight: .regular))
+                .frame(width: 22, height: 22)
+        }
             .afterimageControl(icon: true)
             .opacity(opening?.contentOpacity ?? 1)
             .accessibilityLabel("记录瞬间").accessibilityIdentifier("memory.add")
