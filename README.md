@@ -77,13 +77,6 @@ xcodebuild -project Afterimage.xcodeproj -scheme Afterimage \
   CODE_SIGNING_ALLOWED=NO test
 ```
 
-## 自动构建与验证
-
-推送到 `main` 或手动运行工作流即可构建。当前工作流会先运行单元检查、开屏交互与主轴/弹层回归检查，再生成 iPhone 安装包，并保留日志、模拟器录屏和截图用于复核。
-
-公开仓库使用 GitHub 的标准 macOS 构建机，不需要消耗私有仓库的构建额度。构建机是每次任务临时启动的环境，任务结束后释放。
-
-模拟器检查不能代替真实 iPhone 上的手势、触感和流畅度体验。
 
 ## 源码结构
 
