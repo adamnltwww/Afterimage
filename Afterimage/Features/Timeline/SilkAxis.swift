@@ -83,7 +83,7 @@ enum SilkRenderer {
         let arrival = ThreadGeometry.smooth(min(1, max(0, amount * 1.5 - (1 - edge) * 0.5)))
         let envelope = pow(arrival, 1 + Double(strand % 5) * 0.17)
         let s = u + 0.5, v = 1 - s
-        let left = sin(seed * 1.3) * 225
+        let left = sin(seed * 1.17) * 225
         let right = cos(seed * 0.8) * 225
         let controlA = sin(seed * 0.9 + 0.7) * 190
         let controlB = cos(seed * 1.2) * 190
@@ -103,6 +103,7 @@ enum SilkRenderer {
         let end = origin + width + 24
         var fibres: [Fibre] = []
         for strand in 0..<17 {
+            let leading = [0, 5, 11].contains(strand)
             var whole = Path()
             for (index, x) in stride(from: start, through: end, by: 3).enumerated() {
                 let sample = openingPoint(x: x, strand: strand, time: time, tension: tension,
@@ -127,7 +128,8 @@ enum SilkRenderer {
                     let release = abs(TimelineLayout.y(at: x) - y) / ThreadGeometry.lift
                     remaining = 1 - ThreadGeometry.smooth(release / 0.35)
                 }
-                let light = min(0.98, 0.16 + depth * 0.48 + pulse * 0.48) * remaining
+                let exposure = 1 + openingAmount * (leading ? 0.18 : -0.22)
+                let light = min(0.98, (0.16 + depth * 0.48 + pulse * 0.48) * exposure) * remaining
                 let color = Color(red: 1, green: min(0.97, 0.63 + depth * 0.23 + pulse * 0.16), blue: min(0.88, 0.30 + depth * 0.35 + pulse * 0.24))
                 stops.append(.init(color: color.opacity(light), location: fraction))
                 // Front highlights fade in from the depth plane instead of exposing cut ends.
@@ -140,7 +142,7 @@ enum SilkRenderer {
                 startPoint: CGPoint(x: start, y: 0), endPoint: CGPoint(x: end, y: 0))
             fibres.append(Fibre(whole: whole, light: ink,
                                 frontLight: frontInk, thickness: (strand < 8 ? 0.75 : (strand < 15 ? 0.55 : 0.35))
-                                    * (1 + openingAmount * (strand.isMultiple(of: 5) ? 0.5 : 0.1))))
+                                    * (1 + openingAmount * (leading ? 0.65 : -0.12))))
         }
 
         var centre = Path()

@@ -8,6 +8,10 @@ on:
         description: 'Run simulator checks after uploading the IPA'
         type: boolean
         default: false
+      opening_only:
+        description: 'Focus UI checks on opening; unit checks still run'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -112,6 +116,9 @@ jobs:
           fi
           if [ "$APP_VERSION" = '0.9.6' ]; then
             UI_CHECKS+=(-only-testing:AfterimageUITests/OpeningAnimationTests)
+          fi
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ] && [ "${{ inputs.opening_only }}" = 'true' ]; then
+            UI_CHECKS=(-only-testing:AfterimageUITests/OpeningAnimationTests)
           fi
           xcodebuild -project Afterimage.xcodeproj -scheme Afterimage \
             -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_ID" \
