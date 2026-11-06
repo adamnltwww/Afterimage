@@ -24,9 +24,6 @@ extension EnvironmentValues {
     var axisFrame: CGRect?
     var overlayFrame: CGRect?
     var readingProgress = 1.0
-    private(set) var gatheringStartedAt: Double?
-    private var gatheringDuration = 1.75
-    private var gatheringFrom = 1.0
     private(set) var isBlocking: Bool
     private(set) var finishing = false
     private var started = false
@@ -64,21 +61,34 @@ extension EnvironmentValues {
     func finish(reduceMotion: Bool, shortened: Bool = false) {
         guard isBlocking, !finishing else { return }
         finishing = true
-        let now = Date.timeIntervalSinceReferenceDate
-        gatheringFrom = reduceMotion ? 0 : silkAmount(at: now)
-        gatheringDuration = shortened ? 0.7 : 1.75
-        gatheringStartedAt = reduceMotion ? nil : now
         ending = Task { @MainActor in
             let gathering = shortened ? 0.7 : 1.75
-            withAnimation(reduceMotion ? nil : .timingCurve(0.22, 0.62, 0.2, 1, duration: gathering)) {
-                spread = 1; silkOpacity = 1
-                wordmarkOpacity = 1
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                silkOpacity = 1; wordmarkOpacity = 1
             }
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: shortened ? 0.7 : 1.5).delay(shortened ? 0 : 0.15)) {
-                wordmarkTravel = 0
+            if !reduceMotion {
+                let clock = ContinuousClock()
+                let start = clock.now
+                let initialSpread = spread
+                let initialTravel = wordmarkTravel
+                while !Task.isCancelled {
+                    let duration = start.duration(to: clock.now).components
+                    let elapsed = Double(duration.seconds) + Double(duration.attoseconds) * 1e-18
+                    let progress = min(1, max(0, elapsed / gathering))
+                    let titleProgress = min(1, max(0, (elapsed - (shortened ? 0 : 0.15)) / (shortened ? 0.7 : 1.5)))
+                    // Publish the actual displayed geometry, rather than an implicit target
+                    // which a refreshed Canvas/TimelineView can replace mid-animation.
+                    var frame = Transaction(); frame.disablesAnimations = true
+                    withTransaction(frame) {
+                        spread = 1 + (initialSpread - 1) * (1 - ThreadGeometry.smooth(progress))
+                        wordmarkTravel = initialTravel * (1 - ThreadGeometry.smooth(titleProgress))
+                    }
+                    if progress >= 1 { break }
+                    try? await clock.sleep(for: .milliseconds(16))
+                }
             }
-            if !reduceMotion { try? await Task.sleep(for: .milliseconds(shortened ? 700 : 1750)) }
             guard !Task.isCancelled else { return }
+            spread = 1; wordmarkTravel = 0
             withAnimation(.easeInOut(duration: reduceMotion ? 0.25 : 1.15)) { contentOpacity = 1 }
             try? await Task.sleep(for: .milliseconds(reduceMotion ? 250 : 1150))
             guard !Task.isCancelled else { return }
@@ -87,16 +97,8 @@ extension EnvironmentValues {
         }
     }
 
-    /// The drawing clock owns convergence; canvas refreshes cannot cancel it.
-    func silkAmount(at time: Double) -> Double {
-        guard let start = gatheringStartedAt else { return max(0, (spread - 1) / 1.6) }
-        let progress = min(1, max(0, (time - start) / gatheringDuration))
-        return gatheringFrom * (1 - ThreadGeometry.smooth(progress))
-    }
-
     func enterBackground() {
         ending?.cancel(); ending = nil
-        gatheringStartedAt = nil
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) {
             spread = 1; silkOpacity = 1; contentOpacity = 1; wordmarkTravel = 0; wordmarkOpacity = 1

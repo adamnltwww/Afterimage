@@ -37,7 +37,7 @@ struct TimelineSilkField: View {
                                  spans: spans, selectedKey: selectedKey, progress: progress,
                                  memberPositions: memberPositions, displacements: displacements,
                                  focus: focus, hasFocus: hasFocus, ink: ink, time: time, synchronous: sampleTime != nil,
-                                 themeOpacity: opening?.contentOpacity ?? 1, openingAmount: opening?.silkAmount(at: time) ?? 0,
+                                 themeOpacity: opening?.contentOpacity ?? 1, openingAmount: max(0, ((opening?.spread ?? 1) - 1) / 1.6),
                                  openingCenter: opening?.isBlocking == true ? offset + viewport / 2 : 0,
                                  openingWidth: viewport)
                     .equatable()
