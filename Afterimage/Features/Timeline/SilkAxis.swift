@@ -16,9 +16,9 @@ struct SilkAxis: View, Animatable {
     var openingAmount = 0.0
     var openingCenter = 0.0
     var openingWidth = 402.0
-    var animatableData: AnimatablePair<Double, Double> {
-        get { AnimatablePair(crossSectionScale, openingAmount) }
-        set { crossSectionScale = newValue.first; openingAmount = newValue.second }
+    var animatableData: Double {
+        get { crossSectionScale }
+        set { crossSectionScale = newValue }
     }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -82,12 +82,17 @@ enum SilkRenderer {
         let edge = min(1, abs(u) * 2)
         let arrival = ThreadGeometry.smooth(min(1, max(0, amount * 1.5 - (1 - edge) * 0.5)))
         let envelope = pow(arrival, 1 + Double(strand % 5) * 0.17)
-        let side = strand.isMultiple(of: 2) ? 1.0 : -1.0
-        let fan = side * (115 + Double(strand % 5) * 24) * pow(abs(u) * 1.8, 1.25)
+        let s = u + 0.5, v = 1 - s
+        let left = sin(seed * 1.3) * 225
+        let right = cos(seed * 0.8) * 225
+        let controlA = sin(seed * 0.9 + 0.7) * 190
+        let controlB = cos(seed * 1.2) * 190
+        let branch = v * v * v * left + 3 * v * v * s * controlA
+            + 3 * v * s * s * controlB + s * s * s * right
         let curl = u * (7.8 + Double(strand % 4) * 0.7) + seed + (1 - amount) * 4.8 + time * 0.12
-        let orbit = sin(curl) * (48 + Double(strand % 6) * 9) * (0.5 + 0.5 * pow(cos(u * 1.4), 2))
-        let branch = sin(u * 3.2 + seed * 0.7) * (40 + Double(strand % 4) * 13)
-        return (settled.y + (fan + orbit + branch) * envelope,
+        let orbit = sin(curl) * (18 + Double(strand % 5) * 5) * exp(-u * u * 14)
+            * (0.45 + 0.9 * sin(.pi * (1 - amount)))
+        return (settled.y + (orbit + branch) * envelope,
                 settled.depth * (1 - envelope) + cos(curl) * envelope)
     }
 

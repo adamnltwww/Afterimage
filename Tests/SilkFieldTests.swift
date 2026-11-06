@@ -98,6 +98,19 @@ import SwiftUI
         XCTAssertEqual(landed, try render(), "Removing the launch shield must leave every title pixel in place")
     }
 
+    func testGatheringUsesTheDrawingClockInsteadOfTheImmediateTarget() throws {
+        let opening = OpeningPresentation()
+        opening.finish(reduceMotion: false)
+        let start = try XCTUnwrap(opening.gatheringStartedAt)
+        opening.spread = 1
+        XCTAssertEqual(opening.silkAmount(at: start), 1, accuracy: 0.00001)
+        XCTAssertGreaterThan(opening.silkAmount(at: start + 0.4), 0.5)
+        XCTAssertGreaterThan(opening.silkAmount(at: start + 1), 0)
+        XCTAssertEqual(opening.silkAmount(at: start + 1.75), 0)
+        opening.enterBackground()
+        XCTAssertEqual(opening.silkAmount(at: start), 0)
+    }
+
     func testOpeningBranchesGatherIntoExactNormalGeometry() {
         var initial: [Double] = []
         for strand in 0..<17 {

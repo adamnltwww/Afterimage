@@ -28,7 +28,8 @@ struct TimelineSilkField: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openingPresentation) private var opening
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: sampleTime != nil || reduceMotion || scenePhase != .active)) { timeline in
+        TimelineView(.animation(minimumInterval: opening?.isBlocking == true ? 1.0 / 60 : 1.0 / 30,
+                                paused: sampleTime != nil || reduceMotion || scenePhase != .active)) { timeline in
         let time = sampleTime ?? (reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate)
         ZStack(alignment: .topLeading) {
             ForEach(Array(SilkTiling.indices(offset: offset, viewport: viewport)), id: \.self) { index in
@@ -36,7 +37,7 @@ struct TimelineSilkField: View {
                                  spans: spans, selectedKey: selectedKey, progress: progress,
                                  memberPositions: memberPositions, displacements: displacements,
                                  focus: focus, hasFocus: hasFocus, ink: ink, time: time, synchronous: sampleTime != nil,
-                                 themeOpacity: opening?.contentOpacity ?? 1, openingSpread: opening?.spread ?? 1,
+                                 themeOpacity: opening?.contentOpacity ?? 1, openingAmount: opening?.silkAmount(at: time) ?? 0,
                                  openingCenter: opening?.isBlocking == true ? offset + viewport / 2 : 0,
                                  openingWidth: viewport)
                     .equatable()
@@ -73,7 +74,7 @@ private struct TimelineSilkTile: View, Equatable {
     let time: Double
     let synchronous: Bool
     let themeOpacity: Double
-    let openingSpread: Double
+    let openingAmount: Double
     let openingCenter: Double
     let openingWidth: Double
     var body: some View {
@@ -86,7 +87,7 @@ private struct TimelineSilkTile: View, Equatable {
                 .opacity(themeOpacity)
             SilkAxis(origin: start, width: width, tension: progress, threadPositions: memberPositions,
                      threadDisplacements: displacements, threadFocus: focus, height: height, lightSamples: 32, renderTime: time, synchronous: synchronous,
-                     openingAmount: max(0, (openingSpread - 1) / 1.6), openingCenter: openingCenter, openingWidth: openingWidth)
+                     openingAmount: openingAmount, openingCenter: openingCenter, openingWidth: openingWidth)
                 .offset(x: -origin)
             ThemeWeave(spans: spans, origin: start, width: width, front: true,
                        selectedKey: selectedKey, progress: progress, hasFocus: hasFocus, height: height, renderTime: time, synchronous: synchronous)

@@ -7,10 +7,7 @@ try:
     time.sleep(1)
     subprocess.run(['xcrun','simctl','launch','--terminate-running-process',device,'com.adamnltwww.afterimage',
                     '--ui-testing','--ui-reading-fixture','--ui-opening'],check=True,timeout=45)
-    start=time.monotonic()
-    for elapsed in [0.6,1.3,2.2,3.2,4.6,6.0]:
-        time.sleep(max(0,start+elapsed-time.monotonic()))
-        subprocess.run(['xcrun','simctl','io',device,'screenshot',str(folder/('opening-%02d.png'%int(elapsed*10)))],check=True,timeout=20)
+    time.sleep(8)
 finally:
     record.send_signal(signal.SIGINT)
     try: record.wait(timeout=12)
@@ -18,3 +15,8 @@ finally:
         record.terminate()
         try: record.wait(timeout=5)
         except subprocess.TimeoutExpired: record.kill();record.wait()
+shot=folder/'opening-landed.png'
+try:
+    subprocess.run(['xcrun','simctl','io',device,'screenshot',str(shot)],check=True,timeout=30)
+except subprocess.TimeoutExpired:
+    if not shot.is_file(): raise

@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ios-${{ github.ref }}-wordmark
+  group: ios-${{ github.ref }}-gathered
   cancel-in-progress: true
 
 jobs:
@@ -91,7 +91,21 @@ jobs:
           xcrun simctl bootstatus "$DEVICE_ID" -b
           xcrun simctl io "$DEVICE_ID" recordVideo --codec=h264 build/polish.mov &
           RECORD_PID=$!
-          trap 'kill -INT "$RECORD_PID" 2>/dev/null || true; wait "$RECORD_PID" 2>/dev/null || true' EXIT
+          stop_recording() {
+            kill -INT "$RECORD_PID" 2>/dev/null || true
+            for attempt in {1..50}; do
+              kill -0 "$RECORD_PID" 2>/dev/null || break
+              sleep 0.1
+            done
+            kill -TERM "$RECORD_PID" 2>/dev/null || true
+            for attempt in {1..30}; do
+              kill -0 "$RECORD_PID" 2>/dev/null || break
+              sleep 0.1
+            done
+            kill -KILL "$RECORD_PID" 2>/dev/null || true
+            wait "$RECORD_PID" 2>/dev/null || true
+          }
+          trap stop_recording EXIT
           UI_CHECKS=(-only-testing:AfterimageUITests/SurfacePolishTests)
           if [ "$APP_VERSION" = '0.9.5' ]; then
             UI_CHECKS=(-only-testing:AfterimageUITests/OpeningAnimationTests)

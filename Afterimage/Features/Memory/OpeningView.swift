@@ -24,6 +24,9 @@ extension EnvironmentValues {
     var axisFrame: CGRect?
     var overlayFrame: CGRect?
     var readingProgress = 1.0
+    private(set) var gatheringStartedAt: Double?
+    private var gatheringDuration = 1.75
+    private var gatheringFrom = 1.0
     private(set) var isBlocking: Bool
     private(set) var finishing = false
     private var started = false
@@ -61,6 +64,10 @@ extension EnvironmentValues {
     func finish(reduceMotion: Bool, shortened: Bool = false) {
         guard isBlocking, !finishing else { return }
         finishing = true
+        let now = Date.timeIntervalSinceReferenceDate
+        gatheringFrom = reduceMotion ? 0 : silkAmount(at: now)
+        gatheringDuration = shortened ? 0.7 : 1.75
+        gatheringStartedAt = reduceMotion ? nil : now
         ending = Task { @MainActor in
             let gathering = shortened ? 0.7 : 1.75
             withAnimation(reduceMotion ? nil : .timingCurve(0.22, 0.62, 0.2, 1, duration: gathering)) {
@@ -80,8 +87,16 @@ extension EnvironmentValues {
         }
     }
 
+    /// The drawing clock owns convergence; canvas refreshes cannot cancel it.
+    func silkAmount(at time: Double) -> Double {
+        guard let start = gatheringStartedAt else { return max(0, (spread - 1) / 1.6) }
+        let progress = min(1, max(0, (time - start) / gatheringDuration))
+        return gatheringFrom * (1 - ThreadGeometry.smooth(progress))
+    }
+
     func enterBackground() {
         ending?.cancel(); ending = nil
+        gatheringStartedAt = nil
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) {
             spread = 1; silkOpacity = 1; contentOpacity = 1; wordmarkTravel = 0; wordmarkOpacity = 1
@@ -140,8 +155,6 @@ struct OpeningWordmark: View {
                     .scaleEffect(1 + 0.32 * travel)
                     .brightness(0.08 * travel)
                     .shadow(color: AfterimageStyle.amber.opacity(0.5 * travel), radius: 9 * travel)
-                    // Measured fixed-size rounded capitals sit 3.58pt below their layout centre.
-                    .offset(y: -3.5)
                     .position(x: title.midX - surface.minX, y: y - surface.minY)
                     .opacity(presentation.isBlocking ? presentation.wordmarkOpacity : 1)
                     .accessibilityHidden(presentation.isBlocking)
