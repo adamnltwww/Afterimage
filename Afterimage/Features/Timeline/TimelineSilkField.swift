@@ -37,7 +37,7 @@ struct TimelineSilkField: View {
                                  memberPositions: memberPositions, displacements: displacements,
                                  focus: focus, hasFocus: hasFocus, ink: ink, time: time, synchronous: sampleTime != nil,
                                  themeOpacity: opening?.contentOpacity ?? 1, openingSpread: opening?.spread ?? 1,
-                                 openingCenter: (opening?.spread ?? 1) > 1 ? offset + viewport / 2 : 0,
+                                 openingCenter: opening?.isBlocking == true ? offset + viewport / 2 : 0,
                                  openingWidth: viewport)
                     .equatable()
                     .position(x: Double(index) * SilkTiling.width + SilkTiling.width / 2, y: height / 2)
