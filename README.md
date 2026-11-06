@@ -1,5 +1,9 @@
 # AFTERIMAGE
 
+<p align="center"><img src="Afterimage/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="120" alt="AFTERIMAGE 图标：暖金四角星与交叠光带" /></p>
+
+**1.0.0 · BUILD 97**　[下载 IPA](https://github.com/adamnltwww/Afterimage/releases/download/v1.0.0/AFTERIMAGE-1.0.0-build97.ipa) · [版本说明](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.0)
+
 ![AFTERIMAGE — 那些留下来的瞬间](docs/afterimage-banner.svg)
 
 **那些留下来的瞬间。**
@@ -94,14 +98,16 @@ AFTERIMAGE 是一款使用 SwiftUI 与 SwiftData 构建的原生 iPhone 记忆�
 
 深色背景、暖金字标与细丝构成界面的基本语言。iOS 26 及以上使用系统玻璃材质，较早的系统采用兼容样式；同时提供减少动态效果、减少透明度等适配。
 
-开屏先浮现略微放大、带柔和金光的 AFTERIMAGE 字标。几股明亮主丝带动更轻的背景细丝，从舒展的大弧线逐步交织、缠绕，最后收束成阅读主轴。字标上移时恢复正常大小，并直接留在主页；按钮与瞬间内容随后一起淡入。开屏与阅读页面使用同一套主轴画布，跳过也保留柔和的收束过程。
+开屏只保留 AFTERIMAGE 字标：文字淡入，平滑上移到顶栏并恢复正常大小；到位后，主轴、按钮与瞬间内容一起渐显。字标直接留在主页，开屏期间不再展开或收束丝线。
+
+App 图标采用墨黑与暖金，以四角星为中心，光带与半透明弧面相对展开。
 
 ## 获取安装包
 
-1. 打开仓库的 [Actions](https://github.com/adamnltwww/Afterimage/actions) 页面。
-2. 进入最近一次成功的 **iOS unsigned device build**。
-3. 在 **Artifacts** 中下载 `Afterimage-版本-build-构建号`，解压得到 IPA。
-4. 使用自己的签名方式安装到 iPhone；本项目开发时使用 iloader。
+1. 打开 [1.0.0 发布页](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.0)，下载 `AFTERIMAGE-1.0.0-build97.ipa`。
+2. 使用自己的签名方式安装到 iPhone；本项目开发时使用 iloader。
+
+后续开发构建可在 [Actions](https://github.com/adamnltwww/Afterimage/actions) 中查看；Release 页面保留正式版本安装包。
 
 构建产物是 **未签名的 arm64 IPA**，需要自行签名，不是 App Store 安装包。覆盖安装并保留现有数据时，请保持相同的 Bundle Identifier：`com.adamnltwww.afterimage`。备份重要记录后再更换安装环境。
 
