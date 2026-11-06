@@ -117,6 +117,13 @@ final class SurfacePolishTests: XCTestCase {
         XCTAssertTrue(app.buttons["themes.delete"].isHittable)
         XCTAssertGreaterThan(app.buttons["themes.merge"].frame.minY, app.frame.height - 160)
         capture(app, "theme-management-pinned-selection-actions")
+        app.buttons["themes.delete"].tap()
+        let deleteAlert = app.alerts.firstMatch
+        XCTAssertTrue(deleteAlert.waitForExistence(timeout: 5))
+        XCTAssertEqual(deleteAlert.frame.midX, app.frame.midX, accuracy: 2)
+        XCTAssertLessThan(abs(deleteAlert.frame.midY - app.frame.midY), 80)
+        capture(app, "theme-delete-centered-confirmation")
+        deleteAlert.buttons["取消"].tap()
         app.buttons["themes.merge"].tap()
         XCTAssertTrue(app.navigationBars["保留哪个主题"].waitForExistence(timeout: 5))
         capture(app, "theme-merge-destination")

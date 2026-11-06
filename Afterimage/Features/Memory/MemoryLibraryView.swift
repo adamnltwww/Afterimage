@@ -148,8 +148,8 @@ struct MemoryLibraryView: View {
 
     private var moreButton: some View {
         Button { showMore = true } label: {
-            Image(systemName: "ellipsis").font(.system(size: 20))
-                .frame(width: 22, height: 22)
+            Image(systemName: "ellipsis").font(.system(size: 22))
+                .frame(width: 24, height: 24)
         }
             .afterimageControl(icon: true)
             .opacity(opening?.contentOpacity ?? 1)
@@ -158,8 +158,8 @@ struct MemoryLibraryView: View {
 
     private var addButton: some View {
         Button { createMemory = true } label: {
-            Image(systemName: "plus").font(.system(size: 22, weight: .regular))
-                .frame(width: 22, height: 22)
+            Image(systemName: "plus").font(.system(size: 24, weight: .regular))
+                .frame(width: 24, height: 24)
         }
             .afterimageControl(icon: true)
             .opacity(opening?.contentOpacity ?? 1)

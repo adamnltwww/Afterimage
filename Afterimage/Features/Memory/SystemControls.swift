@@ -10,7 +10,7 @@ private struct SystemControlStyle: ViewModifier {
             if prominent {
                 content.buttonStyle(.glassProminent).buttonBorderShape(.capsule)
             } else if icon {
-                content.buttonStyle(.glass).buttonBorderShape(.circle).frame(width: 44, height: 44)
+                content.buttonStyle(.glass).buttonBorderShape(.circle).controlSize(.large).frame(width: 48, height: 48)
             } else {
                 content.buttonStyle(.glass).buttonBorderShape(.capsule)
             }
@@ -18,7 +18,7 @@ private struct SystemControlStyle: ViewModifier {
             if prominent {
                 content.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
             } else if icon {
-                content.buttonStyle(.bordered).buttonBorderShape(.circle).frame(width: 44, height: 44)
+                content.buttonStyle(.bordered).buttonBorderShape(.circle).controlSize(.large).frame(width: 48, height: 48)
             } else {
                 content.buttonStyle(.bordered).buttonBorderShape(.capsule)
             }

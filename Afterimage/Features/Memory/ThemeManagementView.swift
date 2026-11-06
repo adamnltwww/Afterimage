@@ -87,7 +87,7 @@ struct ThemeManagementView: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
             .sheet(item: $reading) { ThemeReadingView(tag: $0) }
             .sheet(isPresented: $choosingMerge) { mergeDestination }
-            .confirmationDialog("删除 \(selection.count) 个主题？", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            .alert("删除 \(selection.count) 个主题？", isPresented: $confirmingDelete) {
                 Button("删除主题，保留瞬间", role: .destructive) { perform { try ThemeManagement.delete(keys: selection, in: context) } }
                 Button("取消", role: .cancel) {}
             } message: { Text("所有瞬间上的这些主题标签和对应主题关联将移除。手动关联与说明保留。") }
@@ -121,7 +121,7 @@ struct ThemeManagementView: View {
                             .disabled(destination.isEmpty || selection.subtracting([destination]).isEmpty)
                     }
                 }
-                .confirmationDialog("合并这些主题？", isPresented: $confirmingMerge, titleVisibility: .visible) {
+                .alert("合并这些主题？", isPresented: $confirmingMerge) {
                     Button("确认合并") {
                         guard let target = themes.first(where: { $0.key == destination }) else { return }
                         perform { try ThemeManagement.merge(keys: selection, into: target, in: context) }

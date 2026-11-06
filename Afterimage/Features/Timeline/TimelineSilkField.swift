@@ -36,7 +36,8 @@ struct TimelineSilkField: View {
                                  spans: spans, selectedKey: selectedKey, progress: progress,
                                  memberPositions: memberPositions, displacements: displacements,
                                  focus: focus, hasFocus: hasFocus, ink: ink, time: time, synchronous: sampleTime != nil,
-                                 themeOpacity: opening?.contentOpacity ?? 1, openingSpread: opening?.spread ?? 1)
+                                 themeOpacity: opening?.contentOpacity ?? 1, openingSpread: opening?.spread ?? 1,
+                                 openingCenter: offset + viewport / 2, openingWidth: viewport)
                     .equatable()
                     .position(x: Double(index) * SilkTiling.width + SilkTiling.width / 2, y: height / 2)
             }
@@ -72,6 +73,8 @@ private struct TimelineSilkTile: View, Equatable {
     let synchronous: Bool
     let themeOpacity: Double
     let openingSpread: Double
+    let openingCenter: Double
+    let openingWidth: Double
     var body: some View {
         let start = origin - SilkTiling.bleed
         let width = SilkTiling.width + SilkTiling.bleed * 2
@@ -82,7 +85,7 @@ private struct TimelineSilkTile: View, Equatable {
                 .opacity(themeOpacity)
             SilkAxis(origin: start, width: width, tension: progress, threadPositions: memberPositions,
                      threadDisplacements: displacements, threadFocus: focus, height: height, lightSamples: 32, renderTime: time, synchronous: synchronous,
-                     crossSectionScale: openingSpread)
+                     openingAmount: max(0, (openingSpread - 1) / 1.6), openingCenter: openingCenter, openingWidth: openingWidth)
                 .offset(x: -origin)
             ThemeWeave(spans: spans, origin: start, width: width, front: true,
                        selectedKey: selectedKey, progress: progress, hasFocus: hasFocus, height: height, renderTime: time, synchronous: synchronous)

@@ -53,20 +53,24 @@ extension EnvironmentValues {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-opening-hold") { return }
         #endif
-        try? await Task.sleep(for: .milliseconds(750))
+        try? await Task.sleep(for: .milliseconds(1000))
         guard !Task.isCancelled, !finishing, isBlocking else { return }
         finish(reduceMotion: false)
     }
 
-    func finish(reduceMotion: Bool) {
+    func finish(reduceMotion: Bool, shortened: Bool = false) {
         guard isBlocking, !finishing else { return }
         finishing = true
         ending = Task { @MainActor in
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.85)) {
-                spread = 1; silkOpacity = 1; wordmarkTravel = 0
+            let gathering = shortened ? 0.7 : 1.75
+            withAnimation(reduceMotion ? nil : .timingCurve(0.22, 0.62, 0.2, 1, duration: gathering)) {
+                spread = 1; silkOpacity = 1
                 wordmarkOpacity = 1
             }
-            if !reduceMotion { try? await Task.sleep(for: .milliseconds(850)) }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: shortened ? 0.7 : 1.5).delay(shortened ? 0 : 0.15)) {
+                wordmarkTravel = 0
+            }
+            if !reduceMotion { try? await Task.sleep(for: .milliseconds(shortened ? 700 : 1750)) }
             guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: reduceMotion ? 0.25 : 1.15)) { contentOpacity = 1 }
             try? await Task.sleep(for: .milliseconds(reduceMotion ? 250 : 1150))
@@ -96,7 +100,7 @@ struct OpeningView: View {
     var body: some View {
             Color.clear.contentShape(Rectangle()).onTapGesture { }
             .overlay(alignment: .bottomTrailing) {
-                Button("跳过") { presentation.finish(reduceMotion: reduceMotion) }
+                Button("跳过") { presentation.finish(reduceMotion: reduceMotion, shortened: true) }
                     .font(.footnote).foregroundStyle(.secondary)
                     .frame(minWidth: 52, minHeight: 44)
                     .accessibilityIdentifier("opening.skip")
@@ -136,6 +140,8 @@ struct OpeningWordmark: View {
                     .scaleEffect(1 + 0.32 * travel)
                     .brightness(0.08 * travel)
                     .shadow(color: AfterimageStyle.amber.opacity(0.5 * travel), radius: 9 * travel)
+                    // Measured fixed-size rounded capitals sit 3.58pt below their layout centre.
+                    .offset(y: -3.5)
                     .position(x: title.midX - surface.minX, y: y - surface.minY)
                     .opacity(presentation.isBlocking ? presentation.wordmarkOpacity : 1)
                     .accessibilityHidden(presentation.isBlocking)

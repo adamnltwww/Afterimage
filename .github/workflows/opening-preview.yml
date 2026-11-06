@@ -6,7 +6,7 @@ permissions:
 jobs:
   preview:
     runs-on: xcode-27
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Build simulator app
@@ -19,24 +19,14 @@ jobs:
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/OpeningPreview CODE_SIGNING_ALLOWED=NO build > build/opening-preview.log 2>&1
       - name: Record real launch without XCTest idle waits
-        timeout-minutes: 4
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if "iPhone" in x["name"]))')
           xcrun simctl boot "$DEVICE_ID" || true
           xcrun simctl bootstatus "$DEVICE_ID" -b
           xcrun simctl install "$DEVICE_ID" build/OpeningPreview/Build/Products/Debug-iphonesimulator/Afterimage.app
-          xcrun simctl io "$DEVICE_ID" recordVideo --codec=h264 build/opening-preview.mov &
-          RECORD_PID=$!
-          trap 'kill -INT "$RECORD_PID" 2>/dev/null || true' EXIT
-          sleep 1
-          xcrun simctl launch "$DEVICE_ID" com.adamnltwww.afterimage --ui-testing --ui-reading-fixture --ui-opening
-          sleep 8
-          xcrun simctl io "$DEVICE_ID" screenshot build/opening-landed.png
-          sleep 1
-          kill -INT "$RECORD_PID"
-          wait "$RECORD_PID" || true
-          trap - EXIT
+          python3 scripts/record-opening.py "$DEVICE_ID"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -44,5 +34,5 @@ jobs:
           path: |
             build/opening-preview.log
             build/opening-preview.mov
-            build/opening-landed.png
+            build/opening-*.png
           retention-days: 7

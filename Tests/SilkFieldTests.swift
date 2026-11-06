@@ -55,7 +55,7 @@ import SwiftUI
         opening.silkOpacity = 1
         let image = try pixels(at: 798, opening: opening)
         for x in 0..<402 {
-            let red = (170..<370).map { image[($0 * 402 + x) * 4] }.max() ?? 0
+            let red = (0..<530).map { image[($0 * 402 + x) * 4] }.max() ?? 0
             XCTAssertGreaterThan(red, 28, "Opening must reach both edges, missing column \(x)")
         }
     }
@@ -96,5 +96,26 @@ import SwiftUI
         XCTAssertEqual(landed, try render(), "Revealing controls must not crossfade or replace the title")
         opening.enterBackground()
         XCTAssertEqual(landed, try render(), "Removing the launch shield must leave every title pixel in place")
+    }
+
+    func testOpeningBranchesGatherIntoExactNormalGeometry() {
+        var initial: [Double] = []
+        for strand in 0..<17 {
+            for x in stride(from: 0.0, through: 402.0, by: 24) {
+                let normal = SilkRenderer.point(x: x, strand: strand, time: 18, tension: 0)
+                let settled = SilkRenderer.openingPoint(x: x, strand: strand, time: 18, tension: 0,
+                                                       amount: 0, center: 201, viewport: 402)
+                XCTAssertEqual(settled.y, normal.y)
+                XCTAssertEqual(settled.depth, normal.depth)
+                let loose = SilkRenderer.openingPoint(x: x, strand: strand, time: 18, tension: 0,
+                                                     amount: 1, center: 201, viewport: 402)
+                initial.append(loose.y)
+                let nearly = SilkRenderer.openingPoint(x: x, strand: strand, time: 18, tension: 0,
+                                                      amount: 0.00001, center: 201, viewport: 402)
+                XCTAssertEqual(nearly.y, normal.y, accuracy: 0.01)
+            }
+        }
+        XCTAssertGreaterThan((initial.max() ?? 0) - (initial.min() ?? 0), 300,
+                             "Loose branches must occupy the surrounding space before gathering")
     }
 }

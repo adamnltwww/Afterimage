@@ -81,7 +81,7 @@ jobs:
           retention-days: 7
       - name: Verify interaction and surface fixes after packaging
         if: ${{ env.APP_VERSION == '0.9.2' || env.APP_VERSION == '0.9.3' || env.APP_VERSION == '0.9.4' || env.APP_VERSION == '0.9.5' || env.APP_VERSION == '0.9.6' }}
-        timeout-minutes: 15
+        timeout-minutes: 25
         shell: bash
         run: |
           set -euo pipefail

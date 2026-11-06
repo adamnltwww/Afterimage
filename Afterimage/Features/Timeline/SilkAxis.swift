@@ -13,9 +13,12 @@ struct SilkAxis: View, Animatable {
     var renderTime: Double?
     var synchronous = false
     var crossSectionScale = 1.0
-    var animatableData: Double {
-        get { crossSectionScale }
-        set { crossSectionScale = newValue }
+    var openingAmount = 0.0
+    var openingCenter = 0.0
+    var openingWidth = 402.0
+    var animatableData: AnimatablePair<Double, Double> {
+        get { AnimatablePair(crossSectionScale, openingAmount) }
+        set { crossSectionScale = newValue.first; openingAmount = newValue.second }
     }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -28,7 +31,8 @@ struct SilkAxis: View, Animatable {
                 context.scaleBy(x: 1, y: height / 530)
                 SilkRenderer.draw(in: context, origin: origin, width: width, time: time, tension: tension,
                                   positions: threadPositions, displacements: threadDisplacements, focus: threadFocus,
-                                  crossSectionScale: crossSectionScale, lightSamples: lightSamples)
+                                  crossSectionScale: crossSectionScale, lightSamples: lightSamples,
+                                  openingAmount: openingAmount, openingCenter: openingCenter, openingWidth: openingWidth)
             }
         }
         .frame(width: width, height: height)
@@ -67,15 +71,37 @@ enum SilkRenderer {
         return pow(wave, 14) * (0.3 + 0.7 * pow(0.5 + 0.5 * sin(time * 0.09 + seed), 2))
     }
 
+    /// Wide independent branches spiral into the bundle, with the centre gathering first.
+    /// Zero returns the normal renderer sample exactly, without changing canvas or phase.
+    static func openingPoint(x: Double, strand: Int, time: Double, tension: Double,
+                             amount: Double, center: Double, viewport: Double) -> (y: Double, depth: Double) {
+        let settled = point(x: x, strand: strand, time: time, tension: tension)
+        guard amount > 0 else { return settled }
+        let seed = Double(strand) * 2.39996
+        let u = (x - center) / max(240, viewport)
+        let edge = min(1, abs(u) * 2)
+        let arrival = ThreadGeometry.smooth(min(1, max(0, amount * 1.5 - (1 - edge) * 0.5)))
+        let envelope = pow(arrival, 1 + Double(strand % 5) * 0.17)
+        let side = strand.isMultiple(of: 2) ? 1.0 : -1.0
+        let fan = side * (115 + Double(strand % 5) * 24) * pow(abs(u) * 1.8, 1.25)
+        let curl = u * (7.8 + Double(strand % 4) * 0.7) + seed + (1 - amount) * 4.8 + time * 0.12
+        let orbit = sin(curl) * (48 + Double(strand % 6) * 9) * (0.5 + 0.5 * pow(cos(u * 1.4), 2))
+        let branch = sin(u * 3.2 + seed * 0.7) * (40 + Double(strand % 4) * 13)
+        return (settled.y + (fan + orbit + branch) * envelope,
+                settled.depth * (1 - envelope) + cos(curl) * envelope)
+    }
+
     static func draw(in original: GraphicsContext, origin: Double, width: Double, time: Double, tension: Double,
-                     positions: [Double], displacements: [Double], focus: Double?, crossSectionScale: Double = 1, lightSamples: Int = 96) {
+                     positions: [Double], displacements: [Double], focus: Double?, crossSectionScale: Double = 1, lightSamples: Int = 96,
+                     openingAmount: Double = 0, openingCenter: Double = 0, openingWidth: Double = 402) {
         let start = origin - 24
         let end = origin + width + 24
         var fibres: [Fibre] = []
         for strand in 0..<17 {
             var whole = Path()
             for (index, x) in stride(from: start, through: end, by: 3).enumerated() {
-                let sample = point(x: x, strand: strand, time: time, tension: tension)
+                let sample = openingPoint(x: x, strand: strand, time: time, tension: tension,
+                                          amount: openingAmount, center: openingCenter, viewport: openingWidth)
                 let base = TimelineLayout.y(at: x)
                 let current = CGPoint(x: x, y: base + (sample.y - base) * crossSectionScale)
                 if index == 0 { whole.move(to: current) } else { whole.addLine(to: current) }
@@ -86,7 +112,8 @@ enum SilkRenderer {
             for index in 0...samples {
                 let fraction = Double(index) / Double(samples)
                 let x = start + (end - start) * fraction
-                let depth = (point(x: x, strand: strand, time: time, tension: tension).depth + 1) / 2
+                let depth = (openingPoint(x: x, strand: strand, time: time, tension: tension,
+                                         amount: openingAmount, center: openingCenter, viewport: openingWidth).depth + 1) / 2
                 let pulse = travellingLight(x: x, strand: strand, time: time)
                 var remaining = 1.0
                 if [2, 5, 8].contains(strand), let first = positions.first, let last = positions.last {
@@ -107,7 +134,8 @@ enum SilkRenderer {
             let frontInk = GraphicsContext.Shading.linearGradient(Gradient(stops: frontStops),
                 startPoint: CGPoint(x: start, y: 0), endPoint: CGPoint(x: end, y: 0))
             fibres.append(Fibre(whole: whole, light: ink,
-                                frontLight: frontInk, thickness: strand < 8 ? 0.75 : (strand < 15 ? 0.55 : 0.35)))
+                                frontLight: frontInk, thickness: (strand < 8 ? 0.75 : (strand < 15 ? 0.55 : 0.35))
+                                    * (1 + openingAmount * (strand.isMultiple(of: 5) ? 0.5 : 0.1))))
         }
 
         var centre = Path()
@@ -118,7 +146,7 @@ enum SilkRenderer {
         // Spacious low-luminance atmosphere, then the fibres behind the central bundle.
         var atmosphere = original
         atmosphere.addFilter(.blur(radius: 19))
-        atmosphere.stroke(centre, with: .color(AfterimageStyle.amber.opacity(0.10)), lineWidth: 18)
+        atmosphere.stroke(centre, with: .color(AfterimageStyle.amber.opacity(0.10 * pow(1 - openingAmount, 2))), lineWidth: 18)
         for fibre in fibres {
             var far = original
             far.addFilter(.blur(radius: 0.7))
@@ -131,7 +159,7 @@ enum SilkRenderer {
         }
 
         // A narrow opaque waist occludes the rear fibres where they pass behind the axis.
-        let corePresence = min(1, max(0.3, 1 - (crossSectionScale - 1) * 0.35))
+        let corePresence = min(1, max(0.3, 1 - (crossSectionScale - 1) * 0.35)) * pow(1 - openingAmount, 2)
         original.stroke(centre, with: .color(AfterimageStyle.background.opacity(0.72 * corePresence)), lineWidth: 3)
         var coreGlow = original
         coreGlow.addFilter(.blur(radius: 3))
