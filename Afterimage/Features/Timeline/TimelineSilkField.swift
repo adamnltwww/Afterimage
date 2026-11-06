@@ -29,12 +29,13 @@ struct TimelineSilkField: View {
     @Environment(\.openingPresentation) private var opening
     var body: some View {
         let blocking = opening?.isBlocking == true
-        let amount = max(0, ((opening?.spread ?? 1) - 1) / 1.6)
+        // Launch only moves the wordmark; the settled axis fades in afterwards.
+        let amount = 0.0
         let themeOpacity = opening?.contentOpacity ?? 1
         let silkOpacity = opening?.silkOpacity ?? 1
         let silkBegan = opening?.silkBegan
-        return TimelineView(.animation(minimumInterval: blocking ? 1.0 / 60 : 1.0 / 30,
-                                paused: sampleTime != nil || reduceMotion || scenePhase != .active)) { timeline in
+        return TimelineView(.animation(minimumInterval: 1.0 / 30,
+                                paused: silkOpacity == 0 || sampleTime != nil || reduceMotion || scenePhase != .active)) { timeline in
         let time = sampleTime ?? (reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate)
         ZStack(alignment: .topLeading) {
             ForEach(Array(SilkTiling.indices(offset: offset, viewport: viewport)), id: \.self) { index in

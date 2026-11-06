@@ -50,8 +50,6 @@ extension EnvironmentValues {
         withAnimation(.easeInOut(duration: 0.95)) { wordmarkSheen = 1 }
         try? await Task.sleep(for: .milliseconds(180))
         guard !Task.isCancelled, !finishing, isBlocking else { return }
-        silkBegan = Date()
-        withAnimation(.easeOut(duration: 0.3)) { silkOpacity = 1 }
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-opening-hold") { return }
         #endif
@@ -67,7 +65,8 @@ extension EnvironmentValues {
             return
         }
         finishing = true
-        let gathering = reduceMotion ? 0.25 : (shortened ? 0.65 : 2.05)
+        let gathering = reduceMotion ? 0.25 : (shortened ? 0.55 : 1.5)
+        let titleDuration = reduceMotion ? 0 : (shortened ? 0.25 : 0.85)
         let initialSpread = spread
         let initialTravel = wordmarkTravel
         let initialSilk = silkOpacity
@@ -78,13 +77,13 @@ extension EnvironmentValues {
         driver.start { [weak self] elapsed in
             guard let self else { return false }
             let p = min(1, elapsed / gathering)
-            let travel = Self.smoother(min(1, elapsed / (gathering * 0.91)))
-            let reveal = Self.smoother((p - (reduceMotion ? 0 : 0.52)) / (reduceMotion ? 1 : 0.48))
+            let travel = reduceMotion ? 1 : Self.smoother(elapsed / titleDuration)
+            let reveal = Self.smoother((elapsed - titleDuration) / (gathering - titleDuration))
             var frame = Transaction(); frame.disablesAnimations = true
             withTransaction(frame) {
                 self.spread = reduceMotion ? 1 : 1 + (initialSpread - 1) * (1 - p)
                 self.wordmarkTravel = reduceMotion ? 0 : initialTravel * (1 - travel)
-                self.silkOpacity = initialSilk + (1 - initialSilk) * Self.smoother(elapsed / 0.22)
+                self.silkOpacity = initialSilk + (1 - initialSilk) * reveal
                 self.wordmarkOpacity = initialWordmark + (1 - initialWordmark) * Self.smoother(elapsed / 0.22)
                 self.contentOpacity = initialContent + (1 - initialContent) * reveal
                 if p >= 1 { self.isBlocking = false }
