@@ -33,6 +33,7 @@ jobs:
           name: opening-continuity-preview
           path: |
             build/opening-preview.log
+            build/opening-recording.log
             build/opening-preview.mov
             build/opening-*.png
           retention-days: 7
