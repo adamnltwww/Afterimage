@@ -1,8 +1,26 @@
 import XCTest
 import SwiftUI
+import Observation
 @testable import Afterimage
 
 @MainActor final class SilkFieldTests: XCTestCase {
+    func testWordmarkObservesItsFrameBeforeDeferredGeometryRuns() {
+        let opening = OpeningPresentation()
+        let movement = expectation(description: "A frame change invalidates the wordmark body")
+        withObservationTracking {
+            _ = OpeningWordmark(presentation: opening).body
+        } onChange: { movement.fulfill() }
+        opening.wordmarkTravel = 0.75
+        wait(for: [movement], timeout: 1)
+
+        let reading = expectation(description: "Normal reading updates the same wordmark")
+        withObservationTracking {
+            _ = OpeningWordmark(presentation: opening).body
+        } onChange: { reading.fulfill() }
+        opening.readingProgress = 0.25
+        wait(for: [reading], timeout: 1)
+    }
+
     private func pixels(at offset: Double, opening: OpeningPresentation? = nil) throws -> [UInt8] {
         let view = TimelineSilkField(offset: offset, viewport: 402, contentWidth: 1200, height: 530, sampleTime: 18)
             .offset(x: -offset).frame(width: 402, height: 530, alignment: .topLeading)

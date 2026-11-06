@@ -56,7 +56,8 @@ struct MemoryTimelineView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
+        let reveal = opening?.contentOpacity ?? 1
+        return GeometryReader { geometry in
             let canvasHeight = max(1, geometry.size.height - 12)
             let memories = ordered
             let layout = TimelineLayout(dates: memories.map(\.occurredAt), viewport: geometry.size.width)
@@ -95,7 +96,7 @@ struct MemoryTimelineView: View {
                                 }
                                 Color.clear.frame(width: TimelineLayout.edgePadding).accessibilityHidden(true).id("timeline.trailing")
                             }
-                            .opacity(opening?.contentOpacity ?? 1)
+                            .opacity(reveal)
                         }
                         .frame(width: layout.width, height: canvasHeight, alignment: .topLeading)
                         .background(alignment: .topLeading) {

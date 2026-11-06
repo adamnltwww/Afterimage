@@ -28,7 +28,11 @@ struct TimelineSilkField: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openingPresentation) private var opening
     var body: some View {
-        TimelineView(.animation(minimumInterval: opening?.isBlocking == true ? 1.0 / 60 : 1.0 / 30,
+        let blocking = opening?.isBlocking == true
+        let amount = max(0, ((opening?.spread ?? 1) - 1) / 1.6)
+        let themeOpacity = opening?.contentOpacity ?? 1
+        let silkOpacity = opening?.silkOpacity ?? 1
+        return TimelineView(.animation(minimumInterval: blocking ? 1.0 / 60 : 1.0 / 30,
                                 paused: sampleTime != nil || reduceMotion || scenePhase != .active)) { timeline in
         let time = sampleTime ?? (reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate)
         ZStack(alignment: .topLeading) {
@@ -37,16 +41,16 @@ struct TimelineSilkField: View {
                                  spans: spans, selectedKey: selectedKey, progress: progress,
                                  memberPositions: memberPositions, displacements: displacements,
                                  focus: focus, hasFocus: hasFocus, ink: ink, time: time, synchronous: sampleTime != nil,
-                                 themeOpacity: opening?.contentOpacity ?? 1, openingAmount: max(0, ((opening?.spread ?? 1) - 1) / 1.6),
-                                 openingCenter: opening?.isBlocking == true ? offset + viewport / 2 : 0,
+                                 themeOpacity: themeOpacity, openingAmount: amount,
+                                 openingCenter: blocking ? offset + viewport / 2 : 0,
                                  openingWidth: viewport)
                     .equatable()
                     .position(x: Double(index) * SilkTiling.width + SilkTiling.width / 2, y: height / 2)
             }
         }.frame(width: contentWidth, height: height, alignment: .topLeading)
-            .opacity(opening?.silkOpacity ?? 1)
+            .opacity(silkOpacity)
             .background {
-                if let opening, opening.isBlocking, sampleTime == nil {
+                if let opening, blocking, sampleTime == nil {
                     GeometryReader { geometry in
                         Color.clear
                             .onAppear { opening.axisFrame = geometry.frame(in: .global) }
@@ -109,16 +113,17 @@ struct ReadingPositionWordmark: View {
     let empty: Bool
     var externalWordmark = false
     var body: some View {
+        let position = empty ? 0 : progress.value
         if externalWordmark, let opening {
             // Reserve the native title slot without creating a second visible wordmark.
             Color.clear.frame(width: 190, height: 32)
                 .background {
                     OpeningGeometryProbe(presentation: opening, target: .title,
-                                         readingProgress: empty ? 0 : progress.value)
+                                         readingProgress: position)
                 }
                 .accessibilityHidden(true)
         } else {
-            AfterimageWordmark(progress: empty ? 0 : progress.value)
+            AfterimageWordmark(progress: position)
         }
     }
 }

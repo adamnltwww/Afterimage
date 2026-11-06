@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The axis is a bundle of fibres travelling around a stable centre, not a stack of offset lines.
-struct SilkAxis: View, Animatable {
+struct SilkAxis: View {
     let origin: Double
     let width: Double
     var tension = 0.0
@@ -16,10 +16,6 @@ struct SilkAxis: View, Animatable {
     var openingAmount = 0.0
     var openingCenter = 0.0
     var openingWidth = 402.0
-    var animatableData: Double {
-        get { crossSectionScale }
-        set { crossSectionScale = newValue }
-    }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 

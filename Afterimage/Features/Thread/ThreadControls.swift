@@ -14,7 +14,9 @@ struct ThreadControls: View {
     @State private var showLiftHint = false
 
     var body: some View {
-        Color.clear.frame(height: 0)
+        let reveal = opening?.contentOpacity ?? 1
+        let returning = motion.target > 0.5
+        return Color.clear.frame(height: 0)
             .overlay(alignment: .topLeading) {
                 if showLiftHint && !discoveredLift {
                     Label("向上牵起光结，让相关瞬间跟随", systemImage: "hand.draw")
@@ -25,15 +27,15 @@ struct ThreadControls: View {
             .toolbar {
                 if #available(iOS 26.0, *) {
                     ToolbarItemGroup(placement: .bottomBar) {
-                        leftControls
+                        leftControls.opacity(reveal)
                         Spacer()
-                        rightControls
+                        rightControls(returning: returning).opacity(reveal)
                     }.sharedBackgroundVisibility(.hidden)
                 } else {
                     ToolbarItemGroup(placement: .bottomBar) {
-                        leftControls
+                        leftControls.opacity(reveal)
                         Spacer()
-                        rightControls
+                        rightControls(returning: returning).opacity(reveal)
                     }
                 }
             }
@@ -102,24 +104,22 @@ struct ThreadControls: View {
                     .accessibilityLabel("查看主题").accessibilityIdentifier("theme.open")
             }
         }.buttonStyle(.plain).font(.system(size: 20)).foregroundStyle(AfterimageStyle.amber).afterimageControlGroup()
-            .opacity(opening?.contentOpacity ?? 1)
     }
-    private var rightControls: some View {
+    private func rightControls(returning: Bool) -> some View {
         HStack(spacing: 4) {
             if selectedKey != nil {
                 Button { motion.settle(expanded: motion.target < 0.5, immediately: reduceMotion) } label: {
-                    ThreadActionIcon(returning: motion.target > 0.5).frame(width: 44, height: 44).contentShape(Rectangle())
+                    ThreadActionIcon(returning: returning).frame(width: 44, height: 44).contentShape(Rectangle())
                 }
                 .accessibilityIdentifier("thread.toggle")
-                .accessibilityLabel(motion.target > 0.5 ? "收回主题" : "抽出主题")
-                .accessibilityHint(motion.target > 0.5 ? "让主题丝归回主轴" : "将相关瞬间沿主题丝牵起")
+                .accessibilityLabel(returning ? "收回主题" : "抽出主题")
+                .accessibilityHint(returning ? "让主题丝归回主轴" : "将相关瞬间沿主题丝牵起")
                 .disabled(count < 2)
                 controlDivider
             }
             Button(action: openIndex) { Image(systemName: "magnifyingglass").frame(width: 44, height: 44).contentShape(Rectangle()) }
                 .accessibilityLabel("时间索引与搜索").accessibilityIdentifier("timeline.index")
         }.buttonStyle(.plain).font(.system(size: 20)).foregroundStyle(AfterimageStyle.amber).afterimageControlGroup()
-            .opacity(opening?.contentOpacity ?? 1)
     }
     private var controlDivider: some View {
         Rectangle().fill(Color.primary.opacity(0.16)).frame(width: 0.5, height: 18).accessibilityHidden(true)

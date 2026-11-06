@@ -22,7 +22,8 @@ struct MemoryLibraryView: View {
     @State private var readingPosition = TimelineReadProgress()
 
     var body: some View {
-        NavigationStack {
+        let reveal = opening?.contentOpacity ?? 1
+        return NavigationStack {
             GeometryReader { geometry in
                 VStack(alignment: .leading, spacing: 28) {
                     if records.isEmpty {
@@ -37,7 +38,7 @@ struct MemoryLibraryView: View {
                                 .afterimageControl(prominent: true)
                         }
                         .padding(.vertical, 12)
-                        .opacity(opening?.contentOpacity ?? 1)
+                        .opacity(reveal)
                     } else {
                         MemoryTimelineView(records: records, select: { selected = $0 }, browsingProgress: { readingPosition.value = $0 })
                             .padding(.horizontal, -24)
@@ -47,7 +48,7 @@ struct MemoryLibraryView: View {
                             .accessibilityIdentifier("demo.open")
                             .font(.subheadline)
                             .frame(maxWidth: .infinity, minHeight: 44)
-                            .opacity(opening?.contentOpacity ?? 1)
+                            .opacity(reveal)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -67,10 +68,10 @@ struct MemoryLibraryView: View {
             .toolbar {
                 if !isDemo {
                     if #available(iOS 26.0, *) {
-                        ToolbarItem(placement: .topBarLeading) { moreButton }
+                        ToolbarItem(placement: .topBarLeading) { moreButton.opacity(reveal) }
                             .sharedBackgroundVisibility(.hidden)
                     } else {
-                        ToolbarItem(placement: .topBarLeading) { moreButton }
+                        ToolbarItem(placement: .topBarLeading) { moreButton.opacity(reveal) }
                     }
                 }
                 ToolbarItem(placement: .principal) {
@@ -79,10 +80,10 @@ struct MemoryLibraryView: View {
                         .frame(width: 190, height: 32)
                 }
                 if #available(iOS 26.0, *) {
-                    ToolbarItem(placement: .topBarTrailing) { addButton }
+                    ToolbarItem(placement: .topBarTrailing) { addButton.opacity(reveal) }
                         .sharedBackgroundVisibility(.hidden)
                 } else {
-                    ToolbarItem(placement: .topBarTrailing) { addButton }
+                    ToolbarItem(placement: .topBarTrailing) { addButton.opacity(reveal) }
                 }
             }
             .sheet(isPresented: $createMemory) { MemoryEditorView() }
@@ -152,7 +153,6 @@ struct MemoryLibraryView: View {
                 .frame(width: 30, height: 30)
         }
             .afterimageControl(icon: true)
-            .opacity(opening?.contentOpacity ?? 1)
             .accessibilityLabel("更多选项").accessibilityIdentifier("library.more")
     }
 
@@ -162,7 +162,6 @@ struct MemoryLibraryView: View {
                 .frame(width: 30, height: 30)
         }
             .afterimageControl(icon: true)
-            .opacity(opening?.contentOpacity ?? 1)
             .accessibilityLabel("记录瞬间").accessibilityIdentifier("memory.add")
     }
 

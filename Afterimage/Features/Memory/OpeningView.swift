@@ -143,23 +143,29 @@ struct OpeningWordmark: View {
     let presentation: OpeningPresentation
 
     var body: some View {
-        GeometryReader { geometry in
+        // Read observable inputs in body, before GeometryReader defers its content.
+        let titleFrame = presentation.titleFrame
+        let axisFrame = presentation.axisFrame
+        let travel = presentation.wordmarkTravel
+        let sheen = presentation.wordmarkSheen
+        let reading = presentation.readingProgress
+        let blocking = presentation.isBlocking
+        let opacity = blocking ? presentation.wordmarkOpacity : 1
+        return GeometryReader { geometry in
             let surface = geometry.frame(in: .global)
-            if let title = presentation.titleFrame {
-                let axis = presentation.axisFrame ?? surface
+            if let title = titleFrame {
+                let axis = axisFrame ?? surface
                 let worldX = surface.midX - axis.minX
                 let start = axis.minY + TimelineLayout.y(at: worldX) * axis.height / 530 - 66
-                let travel = presentation.wordmarkTravel
                 let y = title.midY + (start - title.midY) * travel
-                AfterimageWordmark(progress: presentation.wordmarkSheen * travel
-                                   + presentation.readingProgress * (1 - travel))
+                AfterimageWordmark(progress: sheen * travel + reading * (1 - travel))
                     .frame(width: 190, height: 32)
                     .scaleEffect(1 + 0.32 * travel)
                     .brightness(0.08 * travel)
                     .shadow(color: AfterimageStyle.amber.opacity(0.5 * travel), radius: 9 * travel)
                     .position(x: title.midX - surface.minX, y: y - surface.minY)
-                    .opacity(presentation.isBlocking ? presentation.wordmarkOpacity : 1)
-                    .accessibilityHidden(presentation.isBlocking)
+                    .opacity(opacity)
+                    .accessibilityHidden(blocking)
             }
             Color.clear
                 .onAppear { presentation.overlayFrame = surface }
