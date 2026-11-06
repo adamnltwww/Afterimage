@@ -32,6 +32,7 @@ struct TimelineSilkField: View {
         let amount = max(0, ((opening?.spread ?? 1) - 1) / 1.6)
         let themeOpacity = opening?.contentOpacity ?? 1
         let silkOpacity = opening?.silkOpacity ?? 1
+        let silkBegan = opening?.silkBegan
         return TimelineView(.animation(minimumInterval: blocking ? 1.0 / 60 : 1.0 / 30,
                                 paused: sampleTime != nil || reduceMotion || scenePhase != .active)) { timeline in
         let time = sampleTime ?? (reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate)
@@ -43,7 +44,7 @@ struct TimelineSilkField: View {
                                  focus: focus, hasFocus: hasFocus, ink: ink, time: time, synchronous: sampleTime != nil,
                                  themeOpacity: themeOpacity, openingAmount: amount,
                                  openingCenter: blocking ? offset + viewport / 2 : 0,
-                                 openingWidth: viewport)
+                                 openingWidth: viewport, openingAge: silkBegan.map { timeline.date.timeIntervalSince($0) } ?? 10)
                     .equatable()
                     .position(x: Double(index) * SilkTiling.width + SilkTiling.width / 2, y: height / 2)
             }
@@ -81,6 +82,7 @@ private struct TimelineSilkTile: View, Equatable {
     let openingAmount: Double
     let openingCenter: Double
     let openingWidth: Double
+    let openingAge: Double
     var body: some View {
         let start = origin - SilkTiling.bleed
         let width = SilkTiling.width + SilkTiling.bleed * 2
@@ -91,7 +93,7 @@ private struct TimelineSilkTile: View, Equatable {
                 .opacity(themeOpacity)
             SilkAxis(origin: start, width: width, tension: progress, threadPositions: memberPositions,
                      threadDisplacements: displacements, threadFocus: focus, height: height, lightSamples: 32, renderTime: time, synchronous: synchronous,
-                     openingAmount: openingAmount, openingCenter: openingCenter, openingWidth: openingWidth)
+                     openingAmount: openingAmount, openingCenter: openingCenter, openingWidth: openingWidth, openingAge: openingAge)
                 .offset(x: -origin)
             ThemeWeave(spans: spans, origin: start, width: width, front: true,
                        selectedKey: selectedKey, progress: progress, hasFocus: hasFocus, height: height, renderTime: time, synchronous: synchronous)

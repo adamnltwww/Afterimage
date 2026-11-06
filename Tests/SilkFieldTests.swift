@@ -151,4 +151,33 @@ import Observation
         XCTAssertGreaterThan((initial.max() ?? 0) - (initial.min() ?? 0), 300,
                              "Loose branches must occupy the surrounding space before gathering")
     }
+
+    func testReduceMotionCanInterruptAnActiveGathering() async throws {
+        let opening = OpeningPresentation()
+        opening.finish(reduceMotion: false)
+        try await Task.sleep(for: .milliseconds(100))
+        opening.finish(reduceMotion: true)
+        XCTAssertFalse(opening.isBlocking)
+        XCTAssertEqual(opening.spread, 1)
+        XCTAssertEqual(opening.contentOpacity, 1)
+        try await Task.sleep(for: .milliseconds(80))
+        XCTAssertEqual(opening.spread, 1, "An invalidated display link must not restart the gathering")
+    }
+
+    func testOpeningStreamsMoveBeforeGatheringAndSettleContinuously() {
+        let a = SilkRenderer.openingPoint(x: 90, strand: 4, time: 18, tension: 0,
+                                          amount: 1, center: 201, viewport: 402)
+        let b = SilkRenderer.openingPoint(x: 90, strand: 4, time: 18.5, tension: 0,
+                                          amount: 1, center: 201, viewport: 402)
+        XCTAssertGreaterThan(abs(a.y - b.y), 0.1, "The loose streams must already be flowing")
+        for strand in 0..<17 {
+            for x in stride(from: 0.0, through: 402.0, by: 24) {
+                let a = SilkRenderer.openingPoint(x: x, strand: strand, time: 18, tension: 0,
+                                                  amount: 0.0001, center: 201, viewport: 402)
+                let b = SilkRenderer.point(x: x, strand: strand, time: 18, tension: 0)
+                XCTAssertEqual(a.y, b.y, accuracy: 0.001)
+                XCTAssertEqual(a.depth, b.depth, accuracy: 0.001)
+            }
+        }
+    }
 }

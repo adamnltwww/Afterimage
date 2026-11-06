@@ -16,6 +16,7 @@ struct SilkAxis: View {
     var openingAmount = 0.0
     var openingCenter = 0.0
     var openingWidth = 402.0
+    var openingAge = 10.0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
@@ -28,7 +29,7 @@ struct SilkAxis: View {
                 SilkRenderer.draw(in: context, origin: origin, width: width, time: time, tension: tension,
                                   positions: threadPositions, displacements: threadDisplacements, focus: threadFocus,
                                   crossSectionScale: crossSectionScale, lightSamples: lightSamples,
-                                  openingAmount: openingAmount, openingCenter: openingCenter, openingWidth: openingWidth)
+                                  openingAmount: openingAmount, openingCenter: openingCenter, openingWidth: openingWidth, openingAge: openingAge)
             }
         }
         .frame(width: width, height: height)
@@ -76,25 +77,28 @@ enum SilkRenderer {
         let seed = Double(strand) * 2.39996
         let u = (x - center) / max(240, viewport)
         let edge = min(1, abs(u) * 2)
-        let arrival = ThreadGeometry.smooth(min(1, max(0, amount * 1.5 - (1 - edge) * 0.5)))
-        let envelope = pow(arrival, 1 + Double(strand % 5) * 0.17)
-        let s = u + 0.5, v = 1 - s
-        let left = sin(seed * 1.17) * 225
-        let right = cos(seed * 0.8) * 225
-        let controlA = sin(seed * 0.9 + 0.7) * 190
-        let controlB = cos(seed * 1.2) * 190
-        let branch = v * v * v * left + 3 * v * v * s * controlA
-            + 3 * v * s * s * controlB + s * s * s * right
-        let curl = u * (7.8 + Double(strand % 4) * 0.7) + seed + (1 - amount) * 4.8 + time * 0.12
-        let orbit = sin(curl) * (18 + Double(strand % 5) * 5) * exp(-u * u * 14)
-            * (0.45 + 0.9 * sin(.pi * (1 - amount)))
+        // A tension wave travels from the waist to the tips; fibres follow with
+        // a slight lag, carrying their curves sideways as well as inward.
+        let delay = edge * 0.22 + Double(strand % 5) * 0.025
+        let progress = min(1, max(0, (1 - amount - delay) / (1 - delay)))
+        let release = progress * progress * progress * (progress * (progress * 6 - 15) + 10)
+        let envelope = 1 - release
+        let group = Double(strand % 3) - 1
+        let flow = sin(time * 0.65 + group * 0.5) * 0.025
+        let advection = sin(.pi * progress) * 0.12 * sin(seed)
+        let q = u + flow + advection
+        // Three legible sweeping streams, each made of close, breathing fibres.
+        let branch = -195 * sin(q * 2.8) + group * 72 * cos(q * 3.1 + time * 0.18)
+        let curl = q * 7 + seed + release * 2.1 + time * 0.48
+        let orbit = sin(curl) * (5 + Double(strand / 3) * 1.6) * exp(-u * u * 3)
+            * (0.65 + 0.55 * sin(.pi * progress))
         return (settled.y + (orbit + branch) * envelope,
                 settled.depth * (1 - envelope) + cos(curl) * envelope)
     }
 
     static func draw(in original: GraphicsContext, origin: Double, width: Double, time: Double, tension: Double,
                      positions: [Double], displacements: [Double], focus: Double?, crossSectionScale: Double = 1, lightSamples: Int = 96,
-                     openingAmount: Double = 0, openingCenter: Double = 0, openingWidth: Double = 402) {
+                     openingAmount: Double = 0, openingCenter: Double = 0, openingWidth: Double = 402, openingAge: Double = 10) {
         let start = origin - 24
         let end = origin + width + 24
         var fibres: [Fibre] = []
@@ -125,7 +129,10 @@ enum SilkRenderer {
                     remaining = 1 - ThreadGeometry.smooth(release / 0.35)
                 }
                 let exposure = 1 + openingAmount * (leading ? 0.18 : -0.22)
-                let light = min(0.98, (0.16 + depth * 0.48 + pulse * 0.48) * exposure) * remaining
+                let across = min(1, max(0, (x - openingCenter) / max(240, openingWidth) + 0.5))
+                let arrival = ThreadGeometry.smooth((openingAge - Double(strand % 3) * 0.14 - across * 0.32) / 0.5)
+                let entrance = 1 - openingAmount * (1 - arrival)
+                let light = min(0.98, (0.16 + depth * 0.48 + pulse * 0.48) * exposure) * remaining * entrance
                 let color = Color(red: 1, green: min(0.97, 0.63 + depth * 0.23 + pulse * 0.16), blue: min(0.88, 0.30 + depth * 0.35 + pulse * 0.24))
                 stops.append(.init(color: color.opacity(light), location: fraction))
                 // Front highlights fade in from the depth plane instead of exposing cut ends.

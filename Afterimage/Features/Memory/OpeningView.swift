@@ -27,7 +27,8 @@ extension EnvironmentValues {
     private(set) var isBlocking: Bool
     private(set) var finishing = false
     private var started = false
-    private var ending: Task<Void, Never>?
+    private var ending: OpeningFrameDriver?
+    var silkBegan: Date?
 
     init(active: Bool = true) {
         isBlocking = active
@@ -47,63 +48,86 @@ extension EnvironmentValues {
         guard !Task.isCancelled, !finishing, isBlocking else { return }
         withAnimation(.easeOut(duration: 0.45)) { wordmarkOpacity = 1 }
         withAnimation(.easeInOut(duration: 0.95)) { wordmarkSheen = 1 }
-        try? await Task.sleep(for: .milliseconds(400))
+        try? await Task.sleep(for: .milliseconds(180))
         guard !Task.isCancelled, !finishing, isBlocking else { return }
-        withAnimation(.easeOut(duration: 0.7)) { silkOpacity = 1 }
+        silkBegan = Date()
+        withAnimation(.easeOut(duration: 0.3)) { silkOpacity = 1 }
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-opening-hold") { return }
         #endif
-        try? await Task.sleep(for: .milliseconds(1000))
+        try? await Task.sleep(for: .milliseconds(650))
         guard !Task.isCancelled, !finishing, isBlocking else { return }
         finish(reduceMotion: false)
     }
 
     func finish(reduceMotion: Bool, shortened: Bool = false) {
-        guard isBlocking, !finishing else { return }
+        guard isBlocking else { return }
+        if finishing {
+            if reduceMotion { enterBackground() }
+            return
+        }
         finishing = true
-        ending = Task { @MainActor in
-            let gathering = shortened ? 0.7 : 1.75
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
-                silkOpacity = 1; wordmarkOpacity = 1
+        let gathering = reduceMotion ? 0.25 : (shortened ? 0.65 : 2.05)
+        let initialSpread = spread
+        let initialTravel = wordmarkTravel
+        let initialSilk = silkOpacity
+        let initialWordmark = wordmarkOpacity
+        let initialContent = contentOpacity
+        let driver = OpeningFrameDriver()
+        ending = driver
+        driver.start { [weak self] elapsed in
+            guard let self else { return false }
+            let p = min(1, elapsed / gathering)
+            let travel = Self.smoother(min(1, elapsed / (gathering * 0.91)))
+            let reveal = Self.smoother((p - (reduceMotion ? 0 : 0.52)) / (reduceMotion ? 1 : 0.48))
+            var frame = Transaction(); frame.disablesAnimations = true
+            withTransaction(frame) {
+                self.spread = reduceMotion ? 1 : 1 + (initialSpread - 1) * (1 - p)
+                self.wordmarkTravel = reduceMotion ? 0 : initialTravel * (1 - travel)
+                self.silkOpacity = initialSilk + (1 - initialSilk) * Self.smoother(elapsed / 0.22)
+                self.wordmarkOpacity = initialWordmark + (1 - initialWordmark) * Self.smoother(elapsed / 0.22)
+                self.contentOpacity = initialContent + (1 - initialContent) * reveal
+                if p >= 1 { self.isBlocking = false }
             }
-            if !reduceMotion {
-                let clock = ContinuousClock()
-                let start = clock.now
-                let initialSpread = spread
-                let initialTravel = wordmarkTravel
-                while !Task.isCancelled {
-                    let duration = start.duration(to: clock.now).components
-                    let elapsed = Double(duration.seconds) + Double(duration.attoseconds) * 1e-18
-                    let progress = min(1, max(0, elapsed / gathering))
-                    let titleProgress = min(1, max(0, (elapsed - (shortened ? 0 : 0.15)) / (shortened ? 0.7 : 1.5)))
-                    // Publish the actual displayed geometry, rather than an implicit target
-                    // which a refreshed Canvas/TimelineView can replace mid-animation.
-                    var frame = Transaction(); frame.disablesAnimations = true
-                    withTransaction(frame) {
-                        spread = 1 + (initialSpread - 1) * (1 - ThreadGeometry.smooth(progress))
-                        wordmarkTravel = initialTravel * (1 - ThreadGeometry.smooth(titleProgress))
-                    }
-                    if progress >= 1 { break }
-                    try? await clock.sleep(for: .milliseconds(16))
-                }
-            }
-            guard !Task.isCancelled else { return }
-            spread = 1; wordmarkTravel = 0
-            withAnimation(.easeInOut(duration: reduceMotion ? 0.25 : 1.15)) { contentOpacity = 1 }
-            try? await Task.sleep(for: .milliseconds(reduceMotion ? 250 : 1150))
-            guard !Task.isCancelled else { return }
-            isBlocking = false
-            ending = nil
+            if p >= 1 { self.ending = nil }
+            return p < 1
         }
     }
 
+    private static func smoother(_ value: Double) -> Double {
+        let t = min(1, max(0, value))
+        return t * t * t * (t * (t * 6 - 15) + 10)
+    }
+
     func enterBackground() {
-        ending?.cancel(); ending = nil
+        ending?.stop(); ending = nil
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) {
             spread = 1; silkOpacity = 1; contentOpacity = 1; wordmarkTravel = 0; wordmarkOpacity = 1
             finishing = true; isBlocking = false
         }
+    }
+}
+
+@MainActor private final class OpeningFrameDriver: NSObject {
+    private var link: CADisplayLink?
+    private var began: CFTimeInterval?
+    private var update: ((Double) -> Bool)?
+
+    func start(_ update: @escaping (Double) -> Bool) {
+        self.update = update
+        let link = CADisplayLink(target: self, selector: #selector(tick(_:)))
+        self.link = link
+        link.add(to: .main, forMode: .common)
+    }
+
+    @objc private func tick(_ link: CADisplayLink) {
+        if began == nil { began = link.timestamp }
+        if update?(link.timestamp - (began ?? link.timestamp)) != true { stop() }
+    }
+
+    func stop() {
+        link?.invalidate(); link = nil; update = nil; began = nil
     }
 }
 
