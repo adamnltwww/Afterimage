@@ -2,7 +2,7 @@
 
 <p align="center"><img src="Afterimage/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="120" alt="AFTERIMAGE 图标：暖金四角星与交叠光带" /></p>
 
-**1.0.0 · BUILD 97**　[下载 IPA](https://github.com/adamnltwww/Afterimage/releases/download/v1.0.0/AFTERIMAGE-1.0.0-build97.ipa) · [版本说明](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.0)
+**1.0.1 · BUILD 99**　[下载 IPA](https://github.com/adamnltwww/Afterimage/releases/download/v1.0.1/AFTERIMAGE-1.0.1-build99.ipa) · [版本说明](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.1)
 
 ![AFTERIMAGE — 那些留下来的瞬间](docs/afterimage-banner.svg)
 
@@ -90,7 +90,6 @@ AFTERIMAGE 是一款使用 SwiftUI 与 SwiftData 构建的原生 iPhone 记忆�
 - 主题建议在本地完成，当前没有配置云端 AI 服务。
 - 可将记录、照片、主题和关联导出为备份文件，保存到 iCloud Drive 或本机，再从文件恢复。
 - **iCloud Drive 备份需要手动创建，并非实时同步。**恢复前会显示文件中的记录数量，同一瞬间不会重复导入，也不会覆盖本机已修改的版本。
-- 独立演示空间使用单独的数据容器，不与正式记忆混用。
 
 这个公开仓库包含源码、测试及生成式演示素材，不包含用户的记忆数据库、个人照片、备份文件或签名凭据。
 
@@ -102,9 +101,27 @@ AFTERIMAGE 是一款使用 SwiftUI 与 SwiftData 构建的原生 iPhone 记忆�
 
 App 图标采用墨黑与暖金，以四角星为中心，光带与半透明弧面相对展开。
 
+## 按自己的习惯设置
+
+打开「更多 → 设置」，偏好会保存在本机。
+
+| 设置 | 作用 |
+| --- | --- |
+| 开屏动画 | 关闭后，下次启动直接渐显主页。 |
+| 减少动态效果 | 简化过渡、暂停丝线持续流动，并尊重系统的减少动态效果设置。 |
+| 触感反馈 | 控制抽丝与保存结果的触感反馈。 |
+| 本地主题推荐 | 根据标题与正文在本机推荐主题。 |
+| 自动选中推荐主题 | 仅对新记录默认勾选推荐项；关闭后仍可手动选择。 |
+| 采用照片拍摄时间 | 首次添加照片时，用首张照片的拍摄时间填写发生时间。 |
+| 显示正文摘要 | 在时间线无照片记录的标题下显示一行正文。 |
+
+除「减少动态效果」外，各项默认开启。关闭推荐或摘要不会移除已有记录与主题。
+
+更多页将设置和「如何浏览与抽丝」放在前面，版本号独立显示在功能列表下方，默认无需上拉展开；小屏和较大字号仍可滚动查看。演示空间与构建链路测试入口已移除，使用说明补充了记录、照片、主题、关联、长图和备份的操作方式。
+
 ## 获取安装包
 
-1. 打开 [1.0.0 发布页](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.0)，下载 `AFTERIMAGE-1.0.0-build97.ipa`。
+1. 打开 [1.0.1 发布页](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.1)，下载 `AFTERIMAGE-1.0.1-build99.ipa`。
 2. 使用自己的签名方式安装到 iPhone；本项目开发时使用 iloader。
 
 后续开发构建可在 [Actions](https://github.com/adamnltwww/Afterimage/actions) 中查看；Release 页面保留正式版本安装包。
