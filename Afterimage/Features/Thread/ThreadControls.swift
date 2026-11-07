@@ -7,7 +7,7 @@ struct ThreadControls: View {
     let motion: ThreadMotion
     let openTheme: (MemoryTag) -> Void
     let openIndex: () -> Void
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
     @Environment(\.openingPresentation) private var opening
     @State private var showThemes = false
     @AppStorage("thread.didDiscoverLift") private var discoveredLift = false

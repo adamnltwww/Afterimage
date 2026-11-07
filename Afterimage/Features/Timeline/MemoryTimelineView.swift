@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct MemoryTimelineView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openingPresentation) private var opening
     let records: [MemoryRecord]
@@ -172,4 +172,3 @@ struct MemoryTimelineView: View {
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.45)) { proxy.scrollTo(id, anchor: .center) }
     }
 }
-

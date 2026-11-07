@@ -19,7 +19,7 @@ struct ThemeWeave: View {
     var height = 530.0
     var renderTime: Double?
     var synchronous = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {

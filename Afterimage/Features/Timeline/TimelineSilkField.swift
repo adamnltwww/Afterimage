@@ -24,7 +24,7 @@ struct TimelineSilkField: View {
     var hasFocus = false
     var ink = ThemePalette.ink(0)
     var sampleTime: Double?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openingPresentation) private var opening
     var body: some View {

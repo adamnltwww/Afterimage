@@ -137,7 +137,7 @@ private struct ComparisonStrand: View {
     let offset: Double
     let select: (MemoryRecord) -> Void
     @State private var motion = ThreadMotion()
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var phase
     private var members: Set<UUID> { Resonance.threadMembers(tag: theme.key, memories: records, choices: choices) }
     private var memberPositions: [Double] { records.indices.filter { members.contains(records[$0].id) }.map { positions[$0] } }

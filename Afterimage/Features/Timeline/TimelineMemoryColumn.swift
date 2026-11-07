@@ -17,7 +17,7 @@ struct TimelineMemoryColumn: View {
     var themeColor: Color = .mint
     var canvasHeight = 530.0
     private var verticalScale: Double { canvasHeight / 530 }
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var pressed = false
     private var engaged: Bool { pressed || (threadMember && motion?.isDragging == true && abs((motion?.focusX ?? -1000) - x) < 1) }

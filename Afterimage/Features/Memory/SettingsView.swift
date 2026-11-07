@@ -74,10 +74,21 @@ struct SettingsView: View {
     }
 }
 
+private struct AppReduceMotionKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var afterimageReduceMotion: Bool {
+        get { self[AppReduceMotionKey.self] }
+        set { self[AppReduceMotionKey.self] = newValue }
+    }
+}
+
 struct AppMotionPreference: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage(AppPreferences.reduceMotionKey) private var reduceMotion = false
     func body(content: Content) -> some View {
-        content.environment(\.accessibilityReduceMotion, systemReduceMotion || reduceMotion)
+        content.environment(\.afterimageReduceMotion, systemReduceMotion || reduceMotion)
     }
 }

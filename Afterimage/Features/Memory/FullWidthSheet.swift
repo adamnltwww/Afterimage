@@ -5,9 +5,10 @@ import UIKit
 struct FullWidthSheet<Content: View>: UIViewControllerRepresentable {
     @Binding var isPresented: Bool
     var initialHeight: CGFloat = 390
+    var fixedHeight = false
     var onDismiss: () -> Void = {}
     @ViewBuilder var content: () -> Content
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
 
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeUIViewController(context: Context) -> UIViewController {
@@ -20,6 +21,7 @@ struct FullWidthSheet<Content: View>: UIViewControllerRepresentable {
         coordinator.requested = isPresented
         coordinator.onDismiss = { isPresented = false; onDismiss() }
         coordinator.initialHeight = initialHeight
+        coordinator.fixedHeight = fixedHeight
         coordinator.reduceMotion = reduceMotion
         if isPresented {
             if let host = coordinator.host {
@@ -47,6 +49,7 @@ struct FullWidthSheet<Content: View>: UIViewControllerRepresentable {
         var scheduled = false
         var requested = false
         var initialHeight: CGFloat = 390
+        var fixedHeight = false
         var reduceMotion = false
         var onDismiss: () -> Void = {}
         private var closing = false
@@ -60,7 +63,7 @@ struct FullWidthSheet<Content: View>: UIViewControllerRepresentable {
         }
         func presentationController(forPresented presented: UIViewController, presenting: UIViewController?, source: UIViewController) -> UIPresentationController? {
             DrawerPresentation(presentedViewController: presented, presenting: presenting, height: initialHeight,
-                               reduceMotion: reduceMotion, close: { [weak self] in self?.close() })
+                               fixedHeight: fixedHeight, reduceMotion: reduceMotion, close: { [weak self] in self?.close() })
         }
         func animationController(forPresented presented: UIViewController, presenting: UIViewController, source: UIViewController) -> UIViewControllerAnimatedTransitioning? { DrawerTransition(appearing: true) }
         func animationController(forDismissed dismissed: UIViewController) -> UIViewControllerAnimatedTransitioning? { DrawerTransition(appearing: false) }
@@ -117,6 +120,7 @@ private final class DrawerTransition: NSObject, UIViewControllerAnimatedTransiti
 
 private final class DrawerPresentation: UIPresentationController, UIGestureRecognizerDelegate {
     let initialHeight: CGFloat
+    let fixedHeight: Bool
     let reduceMotion: Bool
     let close: () -> Void
     private var height: CGFloat
@@ -126,7 +130,8 @@ private final class DrawerPresentation: UIPresentationController, UIGestureRecog
     private let dimmer = UIControl()
     private let handle = UIView()
     private var pan: UIPanGestureRecognizer!
-    init(presentedViewController: UIViewController, presenting presentingViewController: UIViewController?, height: CGFloat, reduceMotion: Bool, close: @escaping () -> Void) {
+    init(presentedViewController: UIViewController, presenting presentingViewController: UIViewController?, height: CGFloat, fixedHeight: Bool, reduceMotion: Bool, close: @escaping () -> Void) {
+        self.fixedHeight = fixedHeight
         initialHeight = height; self.height = height; self.reduceMotion = reduceMotion; self.close = close
         super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
     }
@@ -160,7 +165,7 @@ private final class DrawerPresentation: UIPresentationController, UIGestureRecog
     override func containerViewWillLayoutSubviews() {
         super.containerViewWillLayoutSubviews()
         dimmer.frame = containerView?.bounds ?? .zero
-        (presentedViewController as? DrawerHost)?.setViewportHeight(maximum, bottomInset: containerView?.safeAreaInsets.bottom ?? 0)
+        (presentedViewController as? DrawerHost)?.setViewportHeight(fixedHeight ? min(initialHeight, maximum) : maximum, bottomInset: containerView?.safeAreaInsets.bottom ?? 0)
         presentedView?.frame = frameOfPresentedViewInContainerView
         handle.frame = CGRect(x: frameOfPresentedViewInContainerView.width / 2 - 22, y: 6, width: 44, height: 5)
         presentedView?.bringSubviewToFront(handle)
@@ -172,7 +177,7 @@ private final class DrawerPresentation: UIPresentationController, UIGestureRecog
     }
     private func updateScrollAccess() {
         guard pan != nil, let view = presentedView else { return }
-        configureScrolls(in: view, enabled: !dragging && !settling && height >= maximum - 1)
+        configureScrolls(in: view, enabled: !dragging && !settling && (fixedHeight || height >= maximum - 1))
     }
     private func configureScrolls(in view: UIView, enabled: Bool) {
         if let scroll = view as? UIScrollView {
@@ -193,6 +198,13 @@ private final class DrawerPresentation: UIPresentationController, UIGestureRecog
         let velocity = pan.velocity(in: containerView)
         guard abs(velocity.y) > abs(velocity.x) * 1.15 else { return false }
         let point = pan.location(in: presentedView)
+        if fixedHeight {
+            guard velocity.y > 0 else { return false }
+            if let scroll = enclosingScroll(presentedView?.hitTest(point, with: nil)) {
+                return scroll.contentOffset.y <= -scroll.adjustedContentInset.top + 1
+            }
+            return true
+        }
         if height < maximum - 1 || settling { return true }
         if let scroll = enclosingScroll(presentedView?.hitTest(point, with: nil)) {
             return velocity.y > 0 && scroll.contentOffset.y <= -scroll.adjustedContentInset.top + 1
@@ -212,14 +224,14 @@ private final class DrawerPresentation: UIPresentationController, UIGestureRecog
             }
             startHeight = height; dragging = true; updateScrollAccess()
         case .changed:
-            height = min(maximum, max(100, startHeight - gesture.translation(in: containerView).y))
+            height = min(fixedHeight ? min(initialHeight, maximum) : maximum, max(100, startHeight - gesture.translation(in: containerView).y))
             containerView.setNeedsLayout(); containerView.layoutIfNeeded()
         case .ended, .cancelled, .failed:
             dragging = false
             let velocity = gesture.velocity(in: containerView).y
             if gesture.state == .ended && (height < initialHeight * 0.7 || (velocity > 1000 && height < initialHeight + 20)) { close(); return }
             let projected = height - velocity * 0.16
-            let target = projected > (initialHeight + maximum) / 2 ? maximum : min(initialHeight, maximum)
+            let target = !fixedHeight && projected > (initialHeight + maximum) / 2 ? maximum : min(initialHeight, maximum)
             height = target; settling = true
             UIView.animate(withDuration: reduceMotion ? 0 : 0.36, delay: 0, usingSpringWithDamping: 0.92, initialSpringVelocity: 0, options: [.allowUserInteraction, .beginFromCurrentState]) {
                 containerView.setNeedsLayout(); containerView.layoutIfNeeded()

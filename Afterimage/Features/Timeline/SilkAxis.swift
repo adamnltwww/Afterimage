@@ -17,7 +17,7 @@ struct SilkAxis: View {
     var openingCenter = 0.0
     var openingWidth = 402.0
     var openingAge = 10.0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {

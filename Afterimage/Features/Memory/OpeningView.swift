@@ -136,7 +136,7 @@ extension EnvironmentValues {
 /// The wordmark belongs to the library for its entire lifetime, including after launch.
 /// Only this input shield and skip control are removed when launch finishes.
 struct OpeningView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     let presentation: OpeningPresentation
 

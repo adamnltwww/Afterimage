@@ -10,7 +10,7 @@ struct ThemeManagementView: View {
     @State private var confirmingDelete = false
     @State private var confirmingMerge = false
     @State private var choosingMerge = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
     @State private var reading: MemoryTag?
     @State private var errorMessage: String?
 
