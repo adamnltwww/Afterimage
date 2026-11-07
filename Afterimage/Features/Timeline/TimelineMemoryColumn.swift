@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 struct TimelineMemoryColumn: View {
+    @AppStorage(AppPreferences.summariesKey) private var showSummaries = true
     let memory: MemoryRecord
     let x: Double
     let above: Bool
@@ -40,7 +41,7 @@ struct TimelineMemoryColumn: View {
     private var dateHeight: Double { ceil(UIFont.preferredFont(forTextStyle: .caption2).lineHeight) }
     private var previewTitle: String { memory.displayTitle.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ") }
     private var previewBody: String? {
-        guard memory.photoData == nil, memory.text != memory.displayTitle else { return nil }
+        guard showSummaries, memory.photoData == nil, memory.text != memory.displayTitle else { return nil }
         var body = memory.text.trimmingCharacters(in: .whitespacesAndNewlines)
         if body.hasPrefix(memory.displayTitle) { body = String(body.dropFirst(memory.displayTitle.count)).trimmingCharacters(in: .whitespacesAndNewlines) }
         return body.isEmpty ? nil : String(body.prefix(70)).replacingOccurrences(of: "\n", with: " ")

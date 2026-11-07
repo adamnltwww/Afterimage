@@ -60,7 +60,7 @@ final class ThreadMotion {
         if let grabbedIndex { displacements[grabbedIndex] = progress; nodeVelocities[grabbedIndex] = 0 }
         start()
         if (before < Self.releaseThreshold) != (progress < Self.releaseThreshold) {
-            UISelectionFeedbackGenerator().selectionChanged()
+            if AppPreferences.hapticsEnabled { UISelectionFeedbackGenerator().selectionChanged() }
         }
     }
 

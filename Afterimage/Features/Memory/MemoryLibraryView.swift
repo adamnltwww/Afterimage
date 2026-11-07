@@ -18,6 +18,7 @@ struct MemoryLibraryView: View {
     @State private var showThemes = false
     @State private var showComparison = false
     @State private var showMore = false
+    @State private var showSettings = false
     @State private var moreDestination: String?
     @State private var readingPosition = TimelineReadProgress()
 
@@ -95,12 +96,14 @@ struct MemoryLibraryView: View {
             .sheet(isPresented: $showBackup) { BackupView() }
             .sheet(isPresented: $showThemes) { ThemeManagementView() }
             .sheet(isPresented: $showComparison) { ThreadComparisonView() }
+            .sheet(isPresented: $showSettings) { SettingsView() }
             .background {
                 FullWidthSheet(isPresented: $showMore, onDismiss: openMoreDestination) {
                     NavigationStack {
                         ScrollView {
                             VStack(spacing: 0) {
                                 VStack(spacing: 0) {
+                                moreRow("设置", symbol: "gearshape", destination: "settings")
                                 moreRow("时间回顾与长图", symbol: "calendar", destination: "review")
                                 moreRow("并行抽丝", symbol: "line.3.horizontal", destination: "compare")
                                 moreRow("主题管理", symbol: "tag", destination: "themes")
@@ -188,6 +191,7 @@ struct MemoryLibraryView: View {
         case "compare": showComparison = true
         case "themes": showThemes = true
         case "backup": showBackup = true
+        case "settings": showSettings = true
         case "demo": openDemo()
         case "help": showHelp = true
         case "build": showBuildCheck = true

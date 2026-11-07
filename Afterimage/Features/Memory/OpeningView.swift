@@ -29,16 +29,19 @@ extension EnvironmentValues {
     private var started = false
     private var ending: OpeningFrameDriver?
     var silkBegan: Date?
+    private let animationEnabled: Bool
 
-    init(active: Bool = true) {
+    init(active: Bool = true, animationEnabled: Bool = true) {
+        self.animationEnabled = animationEnabled
         isBlocking = active
+        if !animationEnabled { spread = 1; wordmarkTravel = 0 }
         if !active { spread = 1; silkOpacity = 1; contentOpacity = 1; wordmarkTravel = 0 }
     }
 
     func start(reduceMotion: Bool) async {
         guard !started, isBlocking else { return }
         started = true
-        if reduceMotion { finish(reduceMotion: true); return }
+        if reduceMotion || !animationEnabled { finish(reduceMotion: true); return }
         // Wait for real UIKit/window coordinates, including the separately hosted toolbar.
         for _ in 0..<15 {
             if titleFrame != nil, axisFrame != nil, overlayFrame != nil { break }

@@ -3,13 +3,13 @@ import SwiftData
 
 @main
 struct AfterimageApp: App {
-    @State private var opening = OpeningPresentation()
+    @State private var opening = OpeningPresentation(animationEnabled: AppPreferences.openingAnimationEnabled)
     private let container: ModelContainer?
     private let storageError: String?
 
     init() {
         #if DEBUG
-        _opening = State(initialValue: OpeningPresentation(active: !ProcessInfo.processInfo.arguments.contains("--ui-testing") || ProcessInfo.processInfo.arguments.contains("--ui-opening")))
+        _opening = State(initialValue: OpeningPresentation(active: !ProcessInfo.processInfo.arguments.contains("--ui-testing") || ProcessInfo.processInfo.arguments.contains("--ui-opening"), animationEnabled: AppPreferences.openingAnimationEnabled))
         #endif
         do {
             #if DEBUG
@@ -85,6 +85,7 @@ struct AfterimageApp: App {
                 if opening.isBlocking { OpeningView(presentation: opening) }
             }
             .preferredColorScheme(.dark)
+            .modifier(AppMotionPreference())
             .tint(AfterimageStyle.amber)
         }
     }

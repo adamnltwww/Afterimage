@@ -5,6 +5,9 @@ import UIKit
 import ImageIO
 
 struct MemoryEditorView: View {
+    @AppStorage(AppPreferences.suggestionsKey) private var suggestionsEnabled = true
+    @AppStorage(AppPreferences.autoSelectKey) private var autoSelectSuggestions = true
+    @AppStorage(AppPreferences.photoDateKey) private var usePhotoDate = true
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     let record: MemoryRecord?
@@ -45,17 +48,18 @@ struct MemoryEditorView: View {
     }
 
     private var suggestions: [String] {
+        guard suggestionsEnabled else { return [] }
         let manual = Set(TagInput.names(from: tagText).map { TagInput.key(for: $0) })
         return (matchedInput == matchingInput ? matchedSuggestions : [])
             .filter { !manual.contains(TagInput.key(for: $0)) }
     }
 
     private var matchingInput: String {
-        title + "\u{0}" + text + "\u{0}" + existingThemes.map(\.name).sorted().joined(separator: "\u{0}")
+        String(suggestionsEnabled) + "\u{0}" + title + "\u{0}" + text + "\u{0}" + existingThemes.map(\.name).sorted().joined(separator: "\u{0}")
     }
 
     private func includesSuggestion(_ name: String) -> Bool {
-        suggestionChoices[TagInput.key(for: name)] ?? (record == nil)
+        suggestionChoices[TagInput.key(for: name)] ?? (record == nil && autoSelectSuggestions)
     }
 
     private var savedTagText: String {
@@ -166,6 +170,7 @@ struct MemoryEditorView: View {
                 Button("好") { errorMessage = nil }
             } message: { Text(errorMessage ?? "") }
             .task(id: matchingInput) {
+                guard suggestionsEnabled else { matchedSuggestions = []; matchedInput = ""; return }
                 let input = matchingInput
                 let heading = title
                 let body = text
@@ -199,7 +204,7 @@ struct MemoryEditorView: View {
                         if imported.isEmpty { firstDate = processed.1 }
                         imported.append(processed.0)
                     }
-                    if currentPhotos.isEmpty {
+                    if currentPhotos.isEmpty && usePhotoDate {
                         if let date = firstDate {
                             occurredAt = date
                             photoTimeMessage = "发生时间已对齐封面拍摄时间，你仍可手动修改。"
@@ -227,10 +232,10 @@ struct MemoryEditorView: View {
         do {
             try MemoryStore.save(record: record, text: text, occurredAt: occurredAt,
                                  photoData: photoData, tagText: savedTagText, title: title, extraPhotos: extraPhotos, in: context)
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            if AppPreferences.hapticsEnabled { UINotificationFeedbackGenerator().notificationOccurred(.success) }
             dismiss()
         } catch {
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            if AppPreferences.hapticsEnabled { UINotificationFeedbackGenerator().notificationOccurred(.error) }
             errorMessage = "保存失败，编辑内容仍在此处，请重试。\n\(error.localizedDescription)"
         }
     }
