@@ -150,6 +150,7 @@ private final class DrawerPresentation: UIPresentationController, UIGestureRecog
         presentedView.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         presentedView.clipsToBounds = true
         handle.backgroundColor = UIColor.white.withAlphaComponent(0.25); handle.layer.cornerRadius = 2.5
+        handle.isHidden = fixedHeight
         handle.isUserInteractionEnabled = false; presentedView.addSubview(handle)
         // Leave space above the native navigation bar for the grabber.
         (presentedViewController as? DrawerHost)?.setViewportHeight(maximum, bottomInset: containerView.safeAreaInsets.bottom)

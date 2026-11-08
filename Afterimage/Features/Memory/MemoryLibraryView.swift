@@ -95,12 +95,12 @@ struct MemoryLibraryView: View {
                         ScrollView {
                             VStack(spacing: 0) {
                                 VStack(spacing: 0) {
-                                moreRow("设置", symbol: "gearshape", destination: "settings")
-                                moreRow("如何浏览与抽丝", symbol: "hand.draw", destination: "help")
                                 moreRow("时间回顾与长图", symbol: "calendar", destination: "review")
                                 moreRow("并行抽丝", symbol: "line.3.horizontal", destination: "compare")
                                 moreRow("主题管理", symbol: "tag", destination: "themes")
-                                moreRow("iCloud 备份与恢复", symbol: "icloud", destination: "backup", separator: false)
+                                moreRow("iCloud 备份与恢复", symbol: "icloud", destination: "backup")
+                                moreRow("如何浏览与抽丝", symbol: "hand.draw", destination: "help")
+                                moreRow("设置", symbol: "gearshape", destination: "settings", separator: false)
                                 }.background(AfterimageStyle.surface, in: RoundedRectangle(cornerRadius: 24))
                                     .overlay { RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.04), lineWidth: 0.5) }
                                 Text("AFTERIMAGE · \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?") / BUILD \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")")
