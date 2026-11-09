@@ -60,7 +60,7 @@ struct MemoryTimelineView: View {
     var body: some View {
         let reveal = opening?.contentOpacity ?? 1
         return GeometryReader { geometry in
-            let canvasHeight = max(1, geometry.size.height - 12)
+            let canvasHeight = max(1, geometry.size.height - 12 - (dateFilter.mode == .all ? 0 : 56))
             let memories = ordered
             let layout = TimelineLayout(dates: memories.map(\.occurredAt), viewport: geometry.size.width)
             let drawStart = floor(contentOffset / max(1, geometry.size.width)) * max(1, geometry.size.width) - geometry.size.width

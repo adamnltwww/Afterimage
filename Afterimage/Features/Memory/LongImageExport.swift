@@ -10,7 +10,7 @@ enum LongImageExport {
     }
     @MainActor static func height(_ records: [MemoryRecord]) -> CGFloat {
         UIHostingController(rootView: MemorySharePage(records: records, page: 1, total: 1))
-            .sizeThatFits(in: CGSize(width: 390, height: .greatestFiniteMagnitude)).height
+            .sizeThatFits(in: CGSize(width: 390, height: CGFloat.greatestFiniteMagnitude)).height
     }
     @MainActor static func pdf(records: [MemoryRecord]) async throws -> URL {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("AFTERIMAGE-PDF-" + UUID().uuidString, isDirectory: true)
