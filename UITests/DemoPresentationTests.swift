@@ -135,7 +135,13 @@ final class DemoPresentationTests: XCTestCase {
         let delete = app.buttons["memory.delete"]
         XCTAssertTrue(delete.waitForExistence(timeout: 5))
         delete.tap()
-        app.buttons.matching(identifier: "memory.confirmDelete").firstMatch.tap()
+        let undo = app.buttons["memory.undoDelete"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 5))
+        undo.tap()
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        delete.tap()
+        XCTAssertTrue(undo.waitForExistence(timeout: 5))
+        app.buttons["完成"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["从一个瞬间开始。"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "timeline.node").firstMatch.exists)
     }

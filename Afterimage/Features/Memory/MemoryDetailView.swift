@@ -8,6 +8,7 @@ struct MemoryDetailView: View {
     @State private var editing = false
     @State private var deleted: DeletedMemory?
     @State private var restoredRecord: MemoryRecord?
+    @State private var restoreFailed = false
     @State private var showAllRelated = false
     @State private var errorMessage: String?
     @State private var showConnections = false
@@ -195,7 +196,10 @@ struct MemoryDetailView: View {
                     do {
                         restoredRecord = try snapshot.restore(in: context)
                         deleted = nil
-                    } catch { errorMessage = "恢复失败，请重试。\n\(error.localizedDescription)" }
+                    } catch {
+                        restoreFailed = true
+                        errorMessage = "恢复失败，请重试。\n\(error.localizedDescription)"
+                    }
                 }
                 .afterimageControl(prominent: true).accessibilityIdentifier("memory.undoDelete")
             }
@@ -205,7 +209,7 @@ struct MemoryDetailView: View {
                 do { try await Task.sleep(for: .seconds(8)) }
                 catch { return }
                 // A failed restore leaves the snapshot available for retry.
-                if deleted != nil && errorMessage == nil { dismiss() }
+                if deleted != nil && !restoreFailed { dismiss() }
             }
             .alert("未能恢复", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("好") { errorMessage = nil }

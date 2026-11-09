@@ -176,6 +176,7 @@ jobs:
             -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_ID" \
             -derivedDataPath build/Simulator -resultBundlePath build/Browsing.xcresult \
             -parallel-testing-enabled NO -only-testing:AfterimageTests/BrowsingRefinementTests \
+            -only-testing:AfterimageUITests/DemoPresentationTests/testEmptyDraftDiscardAndDeletingLastMemory \
             CODE_SIGNING_ALLOWED=NO MARKETING_VERSION="$APP_VERSION" \
             CURRENT_PROJECT_VERSION="$APP_BUILD" test 2>&1 | tee build/browsing-tests.log
       - name: Upload build log
