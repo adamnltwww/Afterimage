@@ -61,7 +61,8 @@ struct MemoryIndexView: View {
                                 }
                                 .buttonStyle(.plain).accessibilityIdentifier("index.memory.\(memory.id)")
                                 Button { jump(memory.id) } label: {
-                                    Image(systemName: "location").frame(width: 44, height: 44)
+                                    Label("定位", systemImage: "location")
+                                        .font(.caption).frame(minWidth: 58, minHeight: 44)
                                 }
                                 .buttonStyle(.borderless).accessibilityLabel("在时间轴定位：\(memory.displayTitle)")
                             }

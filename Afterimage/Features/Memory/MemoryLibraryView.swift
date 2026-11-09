@@ -19,6 +19,7 @@ struct MemoryLibraryView: View {
     @State private var showSettings = false
     @State private var moreDestination: String?
     @State private var readingPosition = TimelineReadProgress()
+    @State private var timelineScrubber = TimelineScrubber()
     @ScaledMetric(relativeTo: .body) private var moreRowHeight: CGFloat = 56
 
     var body: some View {
@@ -40,8 +41,15 @@ struct MemoryLibraryView: View {
                         .padding(.vertical, 12)
                         .opacity(reveal)
                     } else {
-                        MemoryTimelineView(records: records, select: { selected = $0 }, browsingProgress: { readingPosition.value = $0 })
+                        MemoryTimelineView(records: records, select: { selected = $0 }, browsingProgress: { value, date in
+                            readingPosition.value = value
+                            readingPosition.date = date
+                        }, scrubber: timelineScrubber)
                             .padding(.horizontal, -24)
+                            .overlay(alignment: .top) {
+                                TimelineScrubDate(progress: readingPosition, activity: timelineScrubber.activity)
+                                    .padding(.top, 4)
+                            }
                     }
                 }
                 .padding(.horizontal, 24)
@@ -68,9 +76,9 @@ struct MemoryLibraryView: View {
                     }
                 }
                 ToolbarItem(placement: .principal) {
-                    ReadingPositionWordmark(progress: readingPosition, empty: records.isEmpty,
-                                            externalWordmark: !isDemo && opening != nil)
-                        .frame(width: 190, height: 32)
+                    TimelineScrubWordmark(progress: readingPosition, scrubber: timelineScrubber,
+                                          empty: records.isEmpty, externalWordmark: !isDemo && opening != nil,
+                                          enabled: reveal >= 0.99)
                 }
                 if #available(iOS 26.0, *) {
                     ToolbarItem(placement: .topBarTrailing) { addButton.opacity(reveal) }
@@ -89,7 +97,7 @@ struct MemoryLibraryView: View {
             .sheet(isPresented: $showComparison) { ThreadComparisonView() }
             .sheet(isPresented: $showSettings) { SettingsView() }
             .background {
-                FullWidthSheet(isPresented: $showMore, initialHeight: moreRowHeight * 6 + 190,
+                FullWidthSheet(isPresented: $showMore, initialHeight: moreRowHeight * 6 + 204,
                                fixedHeight: true, onDismiss: openMoreDestination) {
                     NavigationStack {
                         ScrollView {
@@ -98,11 +106,15 @@ struct MemoryLibraryView: View {
                                 moreRow("时间回顾与长图", symbol: "calendar", destination: "review")
                                 moreRow("并行抽丝", symbol: "line.3.horizontal", destination: "compare")
                                 moreRow("主题管理", symbol: "tag", destination: "themes")
-                                moreRow("iCloud 备份与恢复", symbol: "icloud", destination: "backup")
+                                moreRow("iCloud 备份与恢复", symbol: "icloud", destination: "backup", separator: false)
+                                }.background(AfterimageStyle.surface, in: RoundedRectangle(cornerRadius: 24))
+                                    .overlay { RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.04), lineWidth: 0.5) }
+                                VStack(spacing: 0) {
                                 moreRow("如何浏览与抽丝", symbol: "hand.draw", destination: "help")
                                 moreRow("设置", symbol: "gearshape", destination: "settings", separator: false)
                                 }.background(AfterimageStyle.surface, in: RoundedRectangle(cornerRadius: 24))
                                     .overlay { RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.04), lineWidth: 0.5) }
+                                    .padding(.top, 14)
                                 Text("AFTERIMAGE · \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?") / BUILD \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")")
                                     .font(.caption).foregroundStyle(.secondary)
                                     .frame(maxWidth: .infinity)
@@ -122,6 +134,9 @@ struct MemoryLibraryView: View {
             } message: { Text(errorMessage ?? "") }
         }
         .onAppear { context.autosaveEnabled = false }
+        .onChange(of: showMore) { _, shown in if shown { timelineScrubber.stop() } }
+        .onChange(of: createMemory) { _, shown in if shown { timelineScrubber.stop() } }
+        .onChange(of: selected?.id) { _, _ in timelineScrubber.stop() }
         .overlay {
             if !isDemo, let opening { OpeningWordmark(presentation: opening) }
         }

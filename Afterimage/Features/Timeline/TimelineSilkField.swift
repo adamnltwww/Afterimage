@@ -109,7 +109,10 @@ private struct TimelineSilkTile: View, Equatable {
     }
 }
 
-@Observable final class TimelineReadProgress { var value = 1.0 }
+@Observable final class TimelineReadProgress {
+    var value = 1.0
+    var date: Date?
+}
 struct ReadingPositionWordmark: View {
     @Environment(\.openingPresentation) private var opening
     let progress: TimelineReadProgress

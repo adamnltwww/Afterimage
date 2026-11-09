@@ -7,7 +7,8 @@ struct MemoryTimelineView: View {
     @Environment(\.openingPresentation) private var opening
     let records: [MemoryRecord]
     let select: (MemoryRecord) -> Void
-    var browsingProgress: (Double) -> Void = { _ in }
+    var browsingProgress: (Double, Date?) -> Void = { _, _ in }
+    var scrubber: TimelineScrubber? = nil
     @State private var knownIDs = Set<UUID>()
     @State private var appeared = false
     @State private var showIndex = false
@@ -108,9 +109,7 @@ struct MemoryTimelineView: View {
                         }
                         .coordinateSpace(name: "timeline.canvas")
                         .background {
-                            if #unavailable(iOS 18.0) {
-                                TimelineScrollObserver(offset: $contentOffset, granularity: SilkTiling.width / 2, onOffset: { value in browsingProgress(layout.browsingProgress(at: value, viewport: geometry.size.width)) }).allowsHitTesting(false)
-                            }
+                            TimelineScrollObserver(offset: $contentOffset, granularity: SilkTiling.width / 2, onOffset: { value in reportPosition(value, layout: layout, viewport: geometry.size.width, memories: memories) }, scrubber: scrubber).allowsHitTesting(false)
                         }
                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: memories.map(\.id))
                     }
@@ -118,13 +117,14 @@ struct MemoryTimelineView: View {
                     .defaultScrollAnchor(.trailing)
                     .coordinateSpace(name: "timeline.viewport")
                     .modifier(TimelineScrollTracking(offset: $contentOffset, granularity: SilkTiling.width / 2, onOffset: { value in
-                        browsingProgress(layout.browsingProgress(at: value, viewport: geometry.size.width))
+                        reportPosition(value, layout: layout, viewport: geometry.size.width, memories: memories)
                     }))
                     .accessibilityIdentifier("timeline.scroll")
                     .sheet(isPresented: $showIndex) {
                         MemoryIndexView(memories: memories, locate: { id in
                             move(to: id, proxy: proxy)
                         }, locateEdge: { latest in
+                            scrubber?.stop()
                             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.45)) {
                                 proxy.scrollTo(latest ? "timeline.trailing" : "timeline.leading", anchor: latest ? .trailing : .leading)
                             }
@@ -134,7 +134,7 @@ struct MemoryTimelineView: View {
                         threadMotion.configure(positions: memberPositions)
                         knownIDs = Set(memories.map(\.id))
                         appeared = true
-                        browsingProgress(layout.browsingProgress(at: contentOffset, viewport: geometry.size.width))
+                        reportPosition(contentOffset, layout: layout, viewport: geometry.size.width, memories: memories)
                     }
                     .onChange(of: selectedTheme) { _, _ in
                         focusedID = nil
@@ -146,14 +146,16 @@ struct MemoryTimelineView: View {
                             threadMotion.settle(expanded: false, immediately: true)
                         }
                     }
-                    .onDisappear { threadMotion.suspend() }
+                    .onDisappear { threadMotion.suspend(); scrubber?.stop() }
+                    .onChange(of: showIndex) { _, shown in if shown { scrubber?.stop() } }
                     .onChange(of: scenePhase) { _, phase in
-                        if phase != .active { threadMotion.suspend() }
+                        if phase != .active { threadMotion.suspend(); scrubber?.stop() }
                     }
                     .onChange(of: memberPositions) { old, new in
                         if old != new { threadMotion.configure(positions: new) }
                     }
                     .onChange(of: memories.map(\.id)) { _, ids in
+                        scrubber?.stop()
                         let inserted = Set(ids).subtracting(knownIDs)
                         knownIDs = Set(ids)
                         if appeared, let memory = memories.last(where: { inserted.contains($0.id) }) {
@@ -169,6 +171,13 @@ struct MemoryTimelineView: View {
 
     private func move(to id: UUID?, proxy: ScrollViewProxy) {
         guard let id else { return }
+        scrubber?.stop()
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.45)) { proxy.scrollTo(id, anchor: .center) }
     }
+
+    private func reportPosition(_ offset: Double, layout: TimelineLayout, viewport: Double, memories: [MemoryRecord]) {
+        let date = layout.nearestIndex(at: offset, viewport: viewport).map { memories[$0].occurredAt }
+        browsingProgress(layout.browsingProgress(at: offset, viewport: viewport), date)
+    }
 }
+

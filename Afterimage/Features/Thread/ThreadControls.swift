@@ -18,11 +18,18 @@ struct ThreadControls: View {
         let returning = motion.target > 0.5
         return Color.clear.frame(height: 0)
             .overlay(alignment: .topLeading) {
-                if showLiftHint && !discoveredLift {
-                    Label("向上牵起光结，让相关瞬间跟随", systemImage: "hand.draw")
-                        .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 24)
-                        .offset(y: 8).allowsHitTesting(false)
+                VStack(alignment: .leading, spacing: 8) {
+                    if selectedKey != nil {
+                        Text("\(themeName) · \(count) 个瞬间")
+                            .font(.caption).foregroundStyle(AfterimageStyle.amber)
+                            .lineLimit(2).accessibilityIdentifier("thread.context")
+                    }
+                    if showLiftHint && !discoveredLift {
+                        Label("向上牵起光结，让相关瞬间跟随", systemImage: "hand.draw")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
+                .padding(.horizontal, 24).offset(y: 48).opacity(reveal).allowsHitTesting(false)
             }
             .toolbar {
                 if #available(iOS 26.0, *) {

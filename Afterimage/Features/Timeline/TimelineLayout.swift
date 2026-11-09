@@ -23,6 +23,20 @@ struct TimelineLayout {
 
     static func y(at x: Double) -> Double { 260 + sin(x / 240) * 12 }
 
+    func nearestIndex(at offset: Double, viewport: Double) -> Int? {
+        guard !positions.isEmpty else { return nil }
+        let target = offset + viewport / 2
+        var low = 0
+        var high = positions.count
+        while low < high {
+            let middle = (low + high) / 2
+            if positions[middle] < target { low = middle + 1 } else { high = middle }
+        }
+        if low == 0 { return 0 }
+        if low == positions.count { return positions.count - 1 }
+        return target - positions[low - 1] <= positions[low] - target ? low - 1 : low
+    }
+
     func browsingProgress(at offset: Double, viewport: Double) -> Double {
         let span = width - viewport
         guard span > 1 else { return 1 }

@@ -6,7 +6,9 @@ struct MemoryDetailView: View {
     @Environment(\.modelContext) private var context
     let record: MemoryRecord
     @State private var editing = false
-    @State private var confirmDelete = false
+    @State private var deleted: DeletedMemory?
+    @State private var restoredRecord: MemoryRecord?
+    @State private var showAllRelated = false
     @State private var errorMessage: String?
     @State private var showConnections = false
     @State private var readingTheme: MemoryTag?
@@ -18,9 +20,26 @@ struct MemoryDetailView: View {
 
     private var related: [MemoryRecord] {
         allMemories.filter { $0.id != record.id && Resonance.related(record, $0, choices: linkChoices) }
+            .sorted { a, b in
+                let first = abs(a.occurredAt.timeIntervalSince(record.occurredAt))
+                let second = abs(b.occurredAt.timeIntervalSince(record.occurredAt))
+                return first == second ? a.id.uuidString < b.id.uuidString : first < second
+            }
     }
 
     var body: some View {
+        Group {
+            if let restoredRecord {
+                MemoryDetailView(record: restoredRecord)
+            } else if let deleted {
+                deletedView(deleted)
+            } else {
+                detail
+            }
+        }
+    }
+
+    private var detail: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
@@ -80,7 +99,7 @@ struct MemoryDetailView: View {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button { editing = true } label: { Image(systemName: "pencil") }
                         .accessibilityLabel("编辑瞬间").accessibilityIdentifier("memory.edit")
-                    Button { confirmDelete = true } label: { Image(systemName: "trash").frame(width: 44, height: 44) }
+                    Button(action: deleteRecord) { Image(systemName: "trash").frame(width: 44, height: 44) }
                         .accessibilityLabel("删除瞬间").accessibilityIdentifier("memory.delete")
                 }
             }
@@ -91,14 +110,6 @@ struct MemoryDetailView: View {
             .sheet(item: $editingLink) { other in
                 ManualLinkEditor(source: record, target: other, note: Resonance.manual(record.id, other.id, choices: linkChoices)?.note ?? "")
             }
-            .confirmationDialog("删除这个瞬间？", isPresented: $confirmDelete, titleVisibility: .visible) {
-                Button("删除记录及其照片", role: .destructive) {
-                    do { try MemoryStore.delete(record, in: context); dismiss() }
-                    catch { errorMessage = "删除失败，记录未删除。\n\(error.localizedDescription)" }
-                }
-                .accessibilityIdentifier("memory.confirmDelete")
-                Button("取消", role: .cancel) {}
-            } message: { Text("此操作无法撤销，不会删除系统相册中的原照片。") }
             .alert("未能完成", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("好") { errorMessage = nil }
             } message: { Text(errorMessage ?? "") }
@@ -115,11 +126,15 @@ struct MemoryDetailView: View {
                 }.frame(minHeight: 44).contentShape(Rectangle())
             }
             .accessibilityIdentifier("memory.connections")
-            ForEach(related) { other in
+            ForEach(showAllRelated ? related : Array(related.prefix(4))) { other in
                 VStack(alignment: .leading, spacing: 10) {
                     Button { relatedSelection = other } label: {
                         HStack(alignment: .top) {
-                            Text(other.displayTitle).fixedSize(horizontal: false, vertical: true)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(other.occurredAt.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.caption).foregroundStyle(.secondary)
+                                Text(other.displayTitle).fixedSize(horizontal: false, vertical: true)
+                            }
                             Spacer(minLength: 16)
                             Image(systemName: "arrow.up.right").font(.caption)
                         }.foregroundStyle(.primary).frame(minHeight: 44, alignment: .leading).contentShape(Rectangle())
@@ -145,6 +160,10 @@ struct MemoryDetailView: View {
                 .padding(16).frame(maxWidth: .infinity, alignment: .leading)
                 .background(.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
             }
+            if related.count > 4 {
+                Button(showAllRelated ? "收起关联瞬间" : "查看全部 \(related.count) 个关联瞬间") { showAllRelated.toggle() }
+                    .font(.subheadline).frame(minHeight: 44)
+            }
         }
         .confirmationDialog("手动关联", isPresented: Binding(get: { managingLink != nil }, set: { if !$0 { managingLink = nil } }), titleVisibility: .visible) {
             if let other = managingLink {
@@ -155,5 +174,43 @@ struct MemoryDetailView: View {
                 }
             }
         }
+    }
+
+    private func deleteRecord() {
+        do {
+            let snapshot = try DeletedMemory(record: record, in: context)
+            try MemoryStore.delete(record, in: context)
+            deleted = snapshot
+        } catch { errorMessage = "删除失败，记录未删除。\n\(error.localizedDescription)" }
+    }
+
+    private func deletedView(_ snapshot: DeletedMemory) -> some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Image(systemName: "trash").font(.title).foregroundStyle(.secondary)
+                Text("已删除这个瞬间").font(.title3)
+                Text("8 秒内可撤销，系统相册中的照片不受影响。")
+                    .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Button("撤销删除") {
+                    do {
+                        restoredRecord = try snapshot.restore(in: context)
+                        deleted = nil
+                    } catch { errorMessage = "恢复失败，请重试。\n\(error.localizedDescription)" }
+                }
+                .afterimageControl(prominent: true).accessibilityIdentifier("memory.undoDelete")
+            }
+            .padding(28).frame(maxWidth: .infinity, maxHeight: .infinity).afterimageSheetSurface()
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
+            .task {
+                do { try await Task.sleep(for: .seconds(8)) }
+                catch { return }
+                // A failed restore leaves the snapshot available for retry.
+                if deleted != nil && errorMessage == nil { dismiss() }
+            }
+            .alert("未能恢复", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("好") { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
+        }
+        .interactiveDismissDisabled()
     }
 }

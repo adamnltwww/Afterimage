@@ -6,10 +6,13 @@ struct TimelineScrollObserver: UIViewRepresentable {
     @Binding var offset: Double
     var granularity = 0.5
     var onOffset: ((Double) -> Void)?
+    var scrubber: TimelineScrubber? = nil
 
     func makeUIView(context: Context) -> Marker { Marker() }
     func updateUIView(_ view: Marker, context: Context) {
+        view.scrubber = scrubber
         view.changed = { value in
+            if #available(iOS 18.0, *), scrubber != nil { return }
             onOffset?(value)
             if abs(offset - value) > granularity { offset = value }
         }
@@ -17,6 +20,7 @@ struct TimelineScrollObserver: UIViewRepresentable {
     }
 
     final class Marker: UIView {
+        weak var scrubber: TimelineScrubber?
         var changed: ((Double) -> Void)?
         private var observation: NSKeyValueObservation?
         private weak var observedScroll: UIScrollView?
@@ -30,7 +34,7 @@ struct TimelineScrollObserver: UIViewRepresentable {
 
         override func didMoveToWindow() {
             super.didMoveToWindow()
-            if window == nil { observation = nil; observedScroll = nil }
+            if window == nil { observation = nil; observedScroll = nil; scrubber?.detach() }
             else { connectWhenReady() }
         }
 
@@ -39,6 +43,7 @@ struct TimelineScrollObserver: UIViewRepresentable {
             var ancestor = superview
             while let view = ancestor {
                 if let scroll = view as? UIScrollView {
+                    scrubber?.attach(scroll)
                     if observedScroll === scroll {
                         changed?(Double(scroll.contentOffset.x + scroll.adjustedContentInset.left))
                         return

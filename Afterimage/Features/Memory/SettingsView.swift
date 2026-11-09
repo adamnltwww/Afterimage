@@ -33,32 +33,28 @@ struct SettingsView: View {
                     Toggle("开屏动画", isOn: $openingAnimationEnabled)
                         .accessibilityIdentifier("settings.openingAnimation")
                 } header: {
-                    Text("启动与显示")
+                    Text("启动")
                 } footer: {
-                    Text("开启时，字标上移后进入主页。关闭后，下次启动直接渐显进入主页。")
+                    Text("关闭后，下次启动直接渐显进入主页。")
                 }
                 Section {
                     Toggle("减少动态效果", isOn: $reduceMotion)
                     Toggle("触感反馈", isOn: $haptics)
-                } header: { Text("动效与触感") } footer: {
-                    Text("减少动态效果会简化过渡并暂停丝线持续流动，同时始终尊重系统的减少动态效果设置。触感反馈用于抽丝与保存结果。")
+                    Toggle("显示正文摘要", isOn: $summaries)
+                } header: { Text("浏览体验") } footer: {
+                    Text("减少动态效果会简化过渡、暂停丝线流动与快速浏览惯性。正文摘要显示在无照片记录的标题下。")
                 }
                 Section {
                     Toggle("本地主题推荐", isOn: $suggestions)
                     Toggle("自动选中推荐主题", isOn: $autoSelect)
                         .disabled(!suggestions)
                 } header: { Text("记录与主题") } footer: {
-                    Text("根据标题和正文在本机推荐主题。自动选中仅用于新记录；关闭后仍可手动勾选推荐项。已有主题不会被移除。")
+                    Text("根据标题和正文在本机推荐。自动选中仅用于新记录，已有主题不受影响。")
                 }
                 Section {
                     Toggle("采用照片拍摄时间", isOn: $photoDate)
                 } header: { Text("照片导入") } footer: {
-                    Text("首次添加照片时，用首张照片的拍摄时间填写发生时间；关闭后保留当前选择的时间。")
-                }
-                Section {
-                    Toggle("显示正文摘要", isOn: $summaries)
-                } header: { Text("时间线") } footer: {
-                    Text("在无照片记录的标题下显示一行正文摘要。关闭后仍可点开阅读完整内容。")
+                    Text("首次添加照片时，用首张照片的拍摄时间填写记录时间。")
                 }
             }
             .afterimageSheetSurface()
