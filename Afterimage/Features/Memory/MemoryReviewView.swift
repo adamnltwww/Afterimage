@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+import PDFKit
+
+enum ReviewExportFormat: String, CaseIterable { case png = "高清长图", pdf = "PDF 文档" }
 
 enum ReviewPeriod: String, CaseIterable, Identifiable {
     case all = "全部", month = "本月", year = "今年", custom = "自选"
@@ -26,6 +29,8 @@ struct MemoryReviewView: View {
     @State private var share: ShareImages?
     @State private var errorMessage: String?
     @State private var rendering = false
+    @State private var exportDirectory: URL?
+    @State private var exportFormat = ReviewExportFormat.png
 
     private var themes: [MemoryTag] {
         var unique: [String: MemoryTag] = [:]
@@ -50,7 +55,6 @@ struct MemoryReviewView: View {
             List {
                 Group {
                     Section {
-                        Text("拾起一段时间。 ").font(.title2.weight(.light)).padding(.vertical, 8)
                         Picker("时间", selection: $period) { ForEach(ReviewPeriod.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
                         if period == .custom {
                             DatePicker("从", selection: $from, displayedComponents: .date)
@@ -60,12 +64,15 @@ struct MemoryReviewView: View {
                             Text("所有主题").tag("")
                             ForEach(themes, id: \.key) { Text($0.name).tag($0.key) }
                         }
+                        Picker("导出格式", selection: $exportFormat) {
+                            ForEach(ReviewExportFormat.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        }.pickerStyle(.segmented)
                         Text("\(results.count) 个瞬间 · \(results.reduce(0) { $0 + $1.photos.count }) 张照片")
                             .font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("review.count")
                     }
                     Section {
                         HStack {
-                            Button("选取前 12 个") { selected = Set(results.prefix(12).map(\.id)) }
+                            Button("全选") { selected = Set(results.map(\.id)) }
                             Spacer()
                             Button("清空选择") { selected = [] }
                         }.font(.caption).buttonStyle(.borderless)
@@ -73,7 +80,7 @@ struct MemoryReviewView: View {
                             HStack(alignment: .top, spacing: 14) {
                                 Button {
                                     if selected.contains(record.id) { selected.remove(record.id) }
-                                    else if selected.count < 12 { selected.insert(record.id) }
+                                    else { selected.insert(record.id) }
                                 } label: {
                                     Image(systemName: selected.contains(record.id) ? "checkmark.circle.fill" : "circle").frame(width: 44, height: 44)
                                 }.buttonStyle(.borderless).accessibilityLabel("选择分享：\(record.displayTitle)")
@@ -90,7 +97,7 @@ struct MemoryReviewView: View {
                         }
                         if results.isEmpty { ContentUnavailableView("这段时间还没有瞬间", systemImage: "calendar", description: Text("试试其他时间或主题。")) }
                     } header: { Text("沿时间阅读") }
-                    footer: { Text("每次可选 12 个瞬间，合成一张完整长图。长图显示封面与正文摘要，分享前可预览。") }
+                    footer: { Text("已选 \(selected.count) 个瞬间，不限数量。完整正文与照片按时间排版；高清长图按长度分图，PDF 保存在一个文件中，可连续滚动阅读。") }
                 }.listRowBackground(AfterimageStyle.surface)
             }
             .listStyle(.insetGrouped).scrollContentBackground(.hidden).afterimageSheetSurface()
@@ -98,13 +105,14 @@ struct MemoryReviewView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("完成") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button { render() } label: { if rendering { ProgressView() } else { Label("制作长图", systemImage: "square.and.arrow.up") } }
+                    Button { render() } label: { if rendering { ProgressView() } else { Label("制作预览", systemImage: "square.and.arrow.up") } }
                         .disabled(selected.isEmpty || rendering).accessibilityIdentifier("review.export")
                 }
             }
-            .onChange(of: results.map(\.id), initial: true) { _, ids in selected = Set(ids.prefix(12)) }
+            .onChange(of: results.map(\.id), initial: true) { _, ids in selected = Set(ids) }
             .sheet(item: $reading) { MemoryDetailView(record: $0) }
-            .sheet(item: $share) { SharePreview(images: $0.images) }
+            .sheet(item: $share, onDismiss: clearExport) { SharePreview(files: $0.files, format: $0.format) }
+            .disabled(rendering).interactiveDismissDisabled(rendering)
             .alert("无法制作长图", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("好") { errorMessage = nil }
             } message: { Text(errorMessage ?? "") }
@@ -115,15 +123,23 @@ struct MemoryReviewView: View {
         Task { @MainActor in
             await Task.yield()
             let chosen = results.filter { selected.contains($0.id) }
-            let renderer = ImageRenderer(content: MemorySharePage(records: chosen, page: 1, total: 1).environment(\.colorScheme, .dark))
-            renderer.scale = chosen.count > 8 ? 1.5 : 2
-            guard let image = renderer.uiImage else { errorMessage = "请减少选择的记录后再试。"; rendering = false; return }
-            share = ShareImages(images: [image]); rendering = false
+            defer { rendering = false }
+            do {
+                let format = exportFormat
+                let files = format == .pdf ? [try await LongImageExport.pdf(records: chosen)] : try await LongImageExport.render(records: chosen)
+                exportDirectory = files.first?.deletingLastPathComponent()
+                share = ShareImages(files: files, format: format)
+            }
+            catch { errorMessage = "导出未完成，记录仍保留。\n\(error.localizedDescription)" }
         }
+    }
+    private func clearExport() {
+        if let directory = exportDirectory { try? FileManager.default.removeItem(at: directory) }
+        exportDirectory = nil
     }
 }
 
-struct ShareImages: Identifiable { let id = UUID(); let images: [UIImage] }
+struct ShareImages: Identifiable { let id = UUID(); let files: [URL]; let format: ReviewExportFormat }
 
 struct MemorySharePage: View {
     let records: [MemoryRecord]
@@ -140,21 +156,15 @@ struct MemorySharePage: View {
             }
             VStack(spacing: 32) {
                 ForEach(Array(records.enumerated()), id: \.element.id) { index, record in
-                    let left = index.isMultiple(of: 2)
-                    HStack(alignment: .top, spacing: 48) {
-                        if !left { Color.clear.frame(width: 143, height: 1) }
+                    HStack(alignment: .top, spacing: 24) {
+                        Circle().fill(AfterimageStyle.amber).frame(width: 4, height: 4).padding(.top, 6)
                         ShareMomentCard(record: record)
-                            .overlay(alignment: left ? .topTrailing : .topLeading) {
-                                ShareThreadBridge(left: left).frame(width: 24, height: 16)
-                                    .offset(x: left ? 24 : -24)
-                            }
-                        if left { Color.clear.frame(width: 143, height: 1) }
                     }
                 }
             }
             .padding(.vertical, 24)
-            .background { VerticalShareThread() }
-            Text("AFTERIMAGE / \(records.count) 个瞬间").font(.caption2).foregroundStyle(AfterimageStyle.amber.opacity(0.7))
+            .background(alignment: .leading) { Rectangle().fill(AfterimageStyle.amber.opacity(0.3)).frame(width: 0.5).padding(.leading, 2) }
+            Text("AFTERIMAGE / \(records.count) 个瞬间 · \(page) / \(total)").font(.caption2).foregroundStyle(AfterimageStyle.amber.opacity(0.7))
         }.padding(28).frame(width: 390, alignment: .leading).background(AfterimageStyle.background).foregroundStyle(.white)
     }
 }
@@ -165,16 +175,17 @@ private struct ShareMomentCard: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(record.occurredAt.formatted(date: .abbreviated, time: .omitted))
                 .font(.caption2).foregroundStyle(AfterimageStyle.amber)
-            if let data = record.photoData, let image = UIImage(data: data) {
-                Image(uiImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: 150)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            ForEach(Array(record.photos.enumerated()), id: \.offset) { _, data in
+                if let image = UIImage(data: data) {
+                    Image(uiImage: image).resizable().scaledToFit().frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
             }
-            Text(record.displayTitle).font(.subheadline.weight(.medium)).fixedSize(horizontal: false, vertical: true)
+            Text(record.displayTitle).font(.system(size: 18, weight: .medium)).fixedSize(horizontal: false, vertical: true)
             if record.text != record.displayTitle {
-                Text(record.text).font(.caption).lineSpacing(4).lineLimit(5).foregroundStyle(.secondary)
+                Text(record.text).font(.system(size: 16)).lineSpacing(6).fixedSize(horizontal: false, vertical: true).foregroundStyle(Color.white.opacity(0.85))
             }
-            if record.photos.count > 1 { Text("\(record.photos.count) 张照片 · 封面").font(.caption2).foregroundStyle(.secondary) }
-        }.frame(width: 143, alignment: .leading)
+        }.frame(width: 306, alignment: .leading)
     }
 }
 
@@ -211,30 +222,51 @@ private struct VerticalShareThread: View {
 }
 
 struct SharePreview: View {
-    let images: [UIImage]
+    let files: [URL]
+    let format: ReviewExportFormat
     @Environment(\.dismiss) private var dismiss
     @State private var sharing = false
     var body: some View {
         NavigationStack {
+            Group {
+            if format == .pdf, let url = files.first {
+                ContinuousPDFPreview(url: url)
+            } else {
             ScrollView {
-                VStack(spacing: 24) {
-                    Text("确认长图中的内容后再分享。正文较长时显示摘要。")
+                LazyVStack(spacing: 24) {
+                    Text("完整正文与照片 · 高清 PNG · 共 \(files.count) 张。轻点图片可放大阅读；超长单条的分图边缘保留少量重叠，方便连续阅读。")
                         .font(.caption).foregroundStyle(.secondary)
-                    ForEach(images.indices, id: \.self) { index in
-                        Image(uiImage: images[index]).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 8))
+                    ForEach(files.indices, id: \.self) { index in
+                        LongImagePreview(url: files[index])
                     }
                 }.padding(20)
-            }.afterimageSheetSurface().navigationTitle("长图预览").navigationBarTitleDisplayMode(.inline)
+            }
+            }
+            }.afterimageSheetSurface().navigationTitle(format == .pdf ? "PDF 预览" : "长图预览").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("返回") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("分享", systemImage: "square.and.arrow.up") { sharing = true } }
                 }
-                .sheet(isPresented: $sharing) { ImageShareSheet(images: images) }
+                .sheet(isPresented: $sharing) { ImageShareSheet(files: files) }
         }
     }
 }
+
+struct ContinuousPDFPreview: UIViewRepresentable {
+    let url: URL
+    func makeUIView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.displayDirection = .vertical
+        view.backgroundColor = .black
+        view.document = PDFDocument(url: url)
+        return view
+    }
+    func updateUIView(_ view: PDFView, context: Context) { }
+}
 struct ImageShareSheet: UIViewControllerRepresentable {
-    let images: [UIImage]
-    func makeUIViewController(context: Context) -> UIActivityViewController { UIActivityViewController(activityItems: images, applicationActivities: nil) }
+    let files: [URL]
+    func makeUIViewController(context: Context) -> UIActivityViewController { UIActivityViewController(activityItems: files, applicationActivities: nil) }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) { }
 }

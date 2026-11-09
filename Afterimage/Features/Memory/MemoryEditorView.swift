@@ -10,6 +10,7 @@ struct MemoryEditorView: View {
     @AppStorage(AppPreferences.photoDateKey) private var usePhotoDate = true
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     let record: MemoryRecord?
     @Query private var existingThemes: [MemoryTag]
     @State private var suggestionChoices: [String: Bool] = [:]
@@ -28,6 +29,22 @@ struct MemoryEditorView: View {
     @State private var photoChanged = false
     @State private var photoTimeMessage: String?
     @State private var initialDate: Date
+    @State private var draftReady = false
+    @State private var draftFinished = false
+    @State private var draftStatus: String?
+    @State private var photoRevision = 0
+    @State private var dragSession = UUID().uuidString
+
+    private var draftScope: String {
+        context.container.configurations.first?.url.absoluteString ?? "default"
+    }
+    private var draftValue: EditorDraft {
+        EditorDraft(title: title, text: text, date: occurredAt, tags: tagText, photos: currentPhotos, choices: suggestionChoices)
+    }
+    private var draftTrigger: String {
+        [title, text, tagText, String(occurredAt.timeIntervalSince1970), String(photoRevision),
+         suggestionChoices.keys.sorted().map { $0 + String(suggestionChoices[$0]!) }.joined()].joined(separator: "\u{0}")
+    }
 
     init(record: MemoryRecord? = nil) {
         self.record = record
@@ -70,6 +87,7 @@ struct MemoryEditorView: View {
         NavigationStack {
             Form {
                 Group {
+                    if let draftStatus { Text(draftStatus).font(.caption).foregroundStyle(.secondary) }
                     Section {
                         TextField("给这个瞬间起个标题", text: $title, axis: .vertical)
                             .lineLimit(1...4)
@@ -129,6 +147,16 @@ struct MemoryEditorView: View {
                                         .buttonStyle(.borderless).accessibilityLabel("移除第 \(index + 1) 张照片")
                                 }
                             }.disabled(isLoadingPhoto)
+                                .draggable(dragSession + ":" + String(index))
+                                .dropDestination(for: String.self) { items, _ in
+                                    guard !isLoadingPhoto, let value = items.first,
+                                          value.hasPrefix(dragSession + ":"), let source = Int(value.split(separator: ":").last ?? ""),
+                                          currentPhotos.indices.contains(source), source != index else { return false }
+                                    var photos = currentPhotos
+                                    photos.insert(photos.remove(at: source), at: index)
+                                    setPhotos(photos)
+                                    return true
+                                }
                         }
                         PhotosPicker(selection: $photoSelections, maxSelectionCount: max(1, 9 - currentPhotos.count), selectionBehavior: .ordered, matching: .images, preferredItemEncoding: .current, photoLibrary: .shared()) {
                             Label(currentPhotos.isEmpty ? "添加照片" : "继续添加照片", systemImage: "photo.on.rectangle.angled")
@@ -139,7 +167,7 @@ struct MemoryEditorView: View {
                             Text(photoTimeMessage).font(.footnote).foregroundStyle(.secondary)
                         }
                     } header: { Text("照片 · 可选") }
-                    footer: { Text("最多 9 张，第一张作为主轴封面。保存适合浏览的副本，原照片不受影响。") }
+                    footer: { Text("最多 9 张，长按照片可拖动排序，也可使用向前移动按钮。第一张作为主轴封面。保存适合浏览的副本，原照片不受影响。") }
                 }.listRowBackground(AfterimageStyle.surface)
             }
             .scrollContentBackground(.hidden).afterimageSheetSurface()
@@ -156,13 +184,24 @@ struct MemoryEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存", action: save)
-                        .disabled((text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) || isLoadingPhoto || matchedInput != matchingInput)
+                        .disabled(!draftReady || (text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) || isLoadingPhoto || (suggestionsEnabled && matchedInput != matchingInput))
                         .accessibilityIdentifier("memory.save")
                 }
             }
             .interactiveDismissDisabled(changed || isLoadingPhoto)
-            .confirmationDialog("放弃未保存的内容？", isPresented: $confirmDiscard, titleVisibility: .visible) {
-                Button("放弃修改", role: .destructive) { dismiss() }
+            .confirmationDialog("如何保留这次编辑？", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                Button("保存草稿并退出") {
+                    Task { if await persistDraft() { draftFinished = true; dismiss() } }
+                }
+                Button("放弃修改", role: .destructive) {
+                    Task {
+                        do {
+                            draftFinished = true
+                            try await EditorDraftStore.shared.remove(scope: draftScope, recordID: record?.id)
+                            dismiss()
+                        } catch { draftFinished = false; errorMessage = error.localizedDescription }
+                    }
+                }
                     .accessibilityIdentifier("memory.discard")
                 Button("继续编辑", role: .cancel) {}
             }
@@ -170,7 +209,7 @@ struct MemoryEditorView: View {
                 Button("好") { errorMessage = nil }
             } message: { Text(errorMessage ?? "") }
             .task(id: matchingInput) {
-                guard suggestionsEnabled else { matchedSuggestions = []; matchedInput = ""; return }
+                guard suggestionsEnabled else { matchedSuggestions = []; matchedInput = matchingInput; return }
                 let input = matchingInput
                 let heading = title
                 let body = text
@@ -187,6 +226,28 @@ struct MemoryEditorView: View {
                     // The next keystroke replaces this match, including before saving.
                 } catch { }
             }
+            .task {
+                guard !draftReady else { return }
+                do {
+                    if let draft = try await EditorDraftStore.shared.load(scope: draftScope, recordID: record?.id) {
+                        title = draft.title; text = draft.text; occurredAt = draft.date; tagText = draft.tags
+                        suggestionChoices = draft.choices
+                        setPhotos(draft.photos)
+                        draftStatus = "已恢复上次草稿"
+                    }
+                } catch { errorMessage = "草稿读取失败，原记录未改变。\n\(error.localizedDescription)" }
+                draftReady = true
+            }
+            .task(id: draftTrigger) {
+                guard draftReady, !draftFinished, changed else { return }
+                do { try await Task.sleep(for: .milliseconds(700)); try Task.checkCancellation() }
+                catch { return }
+                _ = await persistDraft()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active && draftReady && !draftFinished && changed { Task { _ = await persistDraft() } }
+            }
+            .disabled(!draftReady || draftFinished)
             .task(id: photoSelections) {
                 guard !photoSelections.isEmpty else { return }
                 let selections = photoSelections
@@ -226,6 +287,18 @@ struct MemoryEditorView: View {
         photoData = photos.first
         extraPhotos = Array(photos.dropFirst())
         photoChanged = true
+        photoRevision += 1
+    }
+
+    private func persistDraft() async -> Bool {
+        guard !draftFinished else { return true }
+        let value = draftValue
+        do {
+            try await EditorDraftStore.shared.save(value, scope: draftScope, recordID: record?.id)
+            draftStatus = "草稿已保存在本机"
+            return true
+        } catch is CancellationError { return false }
+        catch { errorMessage = "草稿保存失败，请保留此页面并重试。\n\(error.localizedDescription)"; return false }
     }
 
     private func save() {
@@ -233,7 +306,11 @@ struct MemoryEditorView: View {
             try MemoryStore.save(record: record, text: text, occurredAt: occurredAt,
                                  photoData: photoData, tagText: savedTagText, title: title, extraPhotos: extraPhotos, in: context)
             if AppPreferences.hapticsEnabled { UINotificationFeedbackGenerator().notificationOccurred(.success) }
-            dismiss()
+            draftFinished = true
+            Task {
+                do { try await EditorDraftStore.shared.remove(scope: draftScope, recordID: record?.id); dismiss() }
+                catch { draftFinished = false; errorMessage = "记录已保存，但旧草稿未能清除。\n\(error.localizedDescription)" }
+            }
         } catch {
             if AppPreferences.hapticsEnabled { UINotificationFeedbackGenerator().notificationOccurred(.error) }
             errorMessage = "保存失败，编辑内容仍在此处，请重试。\n\(error.localizedDescription)"

@@ -23,6 +23,7 @@ struct BackupView: View {
     @State private var message: String?
     @State private var busy = false
     @State private var confirmRestore = false
+    @State private var showContentExport = false
     @AppStorage("backup.lastExport") private var lastExport = 0.0
 
     var body: some View {
@@ -48,6 +49,11 @@ struct BackupView: View {
                         Text("在系统“文件”窗口中选择 iCloud Drive；也可保存到本机。备份需要手动创建，不是实时同步。文件包含完整内容，请保存在你信任的位置。")
                     }
                     Section {
+                        Button("导出文字与照片", systemImage: "doc.zipper") { showContentExport = true }
+                    } header: { Text("独立阅读与迁移") } footer: {
+                        Text("导出可直接阅读的文字与 App 中的照片副本，不需要通过 AFTERIMAGE 恢复。")
+                    }
+                    Section {
                         Text("恢复会补回缺失的记录，同一瞬间不会重复导入，也不会覆盖手机上已修改的版本。恢复前先核对文件中的记录数量。")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
@@ -57,6 +63,7 @@ struct BackupView: View {
             .navigationTitle("备份与恢复").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() }.disabled(busy) } }
             .interactiveDismissDisabled(busy)
+            .sheet(isPresented: $showContentExport) { ContentExportView() }
             .fileExporter(isPresented: $exporting, document: document, contentType: .json,
                           defaultFilename: "AFTERIMAGE-\(Date().formatted(.iso8601.year().month().day().dateSeparator(.dash)))") { result in
                 switch result {

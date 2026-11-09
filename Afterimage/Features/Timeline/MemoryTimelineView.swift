@@ -9,6 +9,7 @@ struct MemoryTimelineView: View {
     let select: (MemoryRecord) -> Void
     var browsingProgress: (Double, Date?) -> Void = { _, _ in }
     var scrubber: TimelineScrubber? = nil
+    @Binding var dateFilter: TimelineDateFilter
     @State private var knownIDs = Set<UUID>()
     @State private var appeared = false
     @State private var showIndex = false
@@ -28,7 +29,7 @@ struct MemoryTimelineView: View {
     }
 
     private var ordered: [MemoryRecord] {
-        records.sorted {
+        records.filter { dateFilter.contains($0.occurredAt) }.sorted {
             if $0.occurredAt != $1.occurredAt { return $0.occurredAt < $1.occurredAt }
             if $0.createdAt != $1.createdAt { return $0.createdAt < $1.createdAt }
             return $0.id.uuidString < $1.id.uuidString
@@ -73,6 +74,12 @@ struct MemoryTimelineView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     ThreadControls(themes: themes, selectedKey: $selectedTheme, count: members.count, motion: threadMotion, openTheme: { readingTheme = $0 }, openIndex: { showIndex = true })
                         .sheet(item: $readingTheme) { ThemeReadingView(tag: $0) }
+                    if dateFilter.mode != .all {
+                        Button { dateFilter.mode = .all } label: {
+                            Label(dateFilter.label + " · 清除筛选", systemImage: "xmark.circle")
+                                .font(.caption).lineLimit(1).frame(minHeight: 44)
+                        }.padding(.horizontal, 24).foregroundStyle(AfterimageStyle.amber)
+                    }
 
                     ScrollView(.horizontal) {
                         ZStack(alignment: .topLeading) {
@@ -120,15 +127,20 @@ struct MemoryTimelineView: View {
                         reportPosition(value, layout: layout, viewport: geometry.size.width, memories: memories)
                     }))
                     .accessibilityIdentifier("timeline.scroll")
+                    .overlay {
+                        if memories.isEmpty {
+                            ContentUnavailableView("这段时间还没有记录", systemImage: "calendar", description: Text("清除筛选可回到全部时间。"))
+                        }
+                    }
                     .sheet(isPresented: $showIndex) {
-                        MemoryIndexView(memories: memories, locate: { id in
+                        MemoryIndexView(memories: records.sorted { $0.occurredAt < $1.occurredAt }, locate: { id in
                             move(to: id, proxy: proxy)
                         }, locateEdge: { latest in
                             scrubber?.stop()
                             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.45)) {
                                 proxy.scrollTo(latest ? "timeline.trailing" : "timeline.leading", anchor: latest ? .trailing : .leading)
                             }
-                        })
+                        }, dateFilter: $dateFilter)
                     }
                     .onAppear {
                         threadMotion.configure(positions: memberPositions)

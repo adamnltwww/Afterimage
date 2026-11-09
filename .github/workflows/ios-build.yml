@@ -166,7 +166,7 @@ jobs:
             xcrun xcresulttool export attachments --path build/Tests.xcresult --output-path build/screenshots || true
           fi
       - name: Verify browsing and deletion recovery
-        if: ${{ env.APP_VERSION == '1.0.3' }}
+        if: ${{ env.APP_VERSION == '1.0.4' }}
         timeout-minutes: 10
         shell: bash
         run: |
@@ -175,10 +175,16 @@ jobs:
           xcodebuild -project Afterimage.xcodeproj -scheme Afterimage \
             -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_ID" \
             -derivedDataPath build/Simulator -resultBundlePath build/Browsing.xcresult \
-            -parallel-testing-enabled NO -only-testing:AfterimageTests/BrowsingRefinementTests \
-            -only-testing:AfterimageUITests/DemoPresentationTests/testEmptyDraftDiscardAndDeletingLastMemory \
+            -parallel-testing-enabled NO -only-testing:AfterimageTests/EditingExportTests \
+            -only-testing:AfterimageUITests/EditingExportUITests \
             CODE_SIGNING_ALLOWED=NO MARKETING_VERSION="$APP_VERSION" \
             CURRENT_PROJECT_VERSION="$APP_BUILD" test 2>&1 | tee build/browsing-tests.log
+      - name: Export editing and long-image evidence
+        if: ${{ always() && env.APP_VERSION == '1.0.4' }}
+        run: |
+          if [ -d build/Browsing.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/Browsing.xcresult --output-path build/editing-evidence || true
+          fi
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
@@ -187,6 +193,7 @@ jobs:
           path: |
             build/xcodebuild.log
             build/browsing-tests.log
+            build/editing-evidence
             build/tests.log
             build/Tests.xcresult
             build/screenshots

@@ -20,6 +20,7 @@ struct MemoryLibraryView: View {
     @State private var moreDestination: String?
     @State private var readingPosition = TimelineReadProgress()
     @State private var timelineScrubber = TimelineScrubber()
+    @State private var dateFilter = TimelineDateFilter()
     @ScaledMetric(relativeTo: .body) private var moreRowHeight: CGFloat = 56
 
     var body: some View {
@@ -44,7 +45,7 @@ struct MemoryLibraryView: View {
                         MemoryTimelineView(records: records, select: { selected = $0 }, browsingProgress: { value, date in
                             readingPosition.value = value
                             readingPosition.date = date
-                        }, scrubber: timelineScrubber)
+                        }, scrubber: timelineScrubber, dateFilter: $dateFilter)
                             .padding(.horizontal, -24)
                             .overlay(alignment: .top) {
                                 TimelineScrubDate(progress: readingPosition, activity: timelineScrubber.activity)
