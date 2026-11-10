@@ -156,14 +156,20 @@ struct MemorySharePage: View {
             }
             VStack(spacing: 32) {
                 ForEach(Array(records.enumerated()), id: \.element.id) { index, record in
-                    HStack(alignment: .top, spacing: 24) {
-                        Circle().fill(AfterimageStyle.amber).frame(width: 4, height: 4).padding(.top, 6)
+                    let left = index.isMultiple(of: 2)
+                    HStack(alignment: .top, spacing: 48) {
+                        if !left { Color.clear.frame(width: 143, height: 1) }
                         ShareMomentCard(record: record)
+                            .overlay(alignment: left ? .topTrailing : .topLeading) {
+                                ShareThreadBridge(left: left).frame(width: 24, height: 16)
+                                    .offset(x: left ? 24 : -24)
+                            }
+                        if left { Color.clear.frame(width: 143, height: 1) }
                     }
                 }
             }
             .padding(.vertical, 24)
-            .background(alignment: .leading) { Rectangle().fill(AfterimageStyle.amber.opacity(0.3)).frame(width: 0.5).padding(.leading, 2) }
+            .background { VerticalShareThread() }
             Text("AFTERIMAGE / \(records.count) 个瞬间 · \(page) / \(total)").font(.caption2).foregroundStyle(AfterimageStyle.amber.opacity(0.7))
         }.padding(28).frame(width: 390, alignment: .leading).background(AfterimageStyle.background).foregroundStyle(.white)
     }
@@ -175,17 +181,16 @@ private struct ShareMomentCard: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(record.occurredAt.formatted(date: .abbreviated, time: .omitted))
                 .font(.caption2).foregroundStyle(AfterimageStyle.amber)
-            ForEach(Array(record.photos.enumerated()), id: \.offset) { _, data in
-                if let image = UIImage(data: data) {
-                    Image(uiImage: image).resizable().scaledToFit().frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
+            if let data = record.photoData, let image = UIImage(data: data) {
+                Image(uiImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: 150)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
             }
-            Text(record.displayTitle).font(.system(size: 18, weight: .medium)).fixedSize(horizontal: false, vertical: true)
+            Text(record.displayTitle).font(.subheadline.weight(.medium)).fixedSize(horizontal: false, vertical: true)
             if record.text != record.displayTitle {
-                Text(record.text).font(.system(size: 16)).lineSpacing(6).fixedSize(horizontal: false, vertical: true).foregroundStyle(Color.white.opacity(0.85))
+                Text(record.text).font(.caption).lineSpacing(4).fixedSize(horizontal: false, vertical: true).foregroundStyle(.secondary)
             }
-        }.frame(width: 306, alignment: .leading)
+            if record.photos.count > 1 { Text("\(record.photos.count) 张照片 · 封面").font(.caption2).foregroundStyle(.secondary) }
+        }.frame(width: 143, alignment: .leading)
     }
 }
 

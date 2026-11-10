@@ -32,6 +32,7 @@ struct MemoryEditorView: View {
     @State private var draftReady = false
     @State private var draftFinished = false
     @State private var draftStatus: String?
+    @State private var lastSavedDraft: String?
     @State private var photoRevision = 0
     @State private var dragSession = UUID().uuidString
 
@@ -233,13 +234,14 @@ struct MemoryEditorView: View {
                         title = draft.title; text = draft.text; occurredAt = draft.date; tagText = draft.tags
                         suggestionChoices = draft.choices
                         setPhotos(draft.photos)
+                        lastSavedDraft = draftTrigger
                         draftStatus = "已恢复上次草稿"
                     }
                 } catch { errorMessage = "草稿读取失败，原记录未改变。\n\(error.localizedDescription)" }
                 draftReady = true
             }
             .task(id: draftTrigger) {
-                guard draftReady, !draftFinished, changed else { return }
+                guard draftReady, !draftFinished, changed, lastSavedDraft != draftTrigger else { return }
                 do { try await Task.sleep(for: .milliseconds(700)); try Task.checkCancellation() }
                 catch { return }
                 _ = await persistDraft()
@@ -293,8 +295,10 @@ struct MemoryEditorView: View {
     private func persistDraft() async -> Bool {
         guard !draftFinished else { return true }
         let value = draftValue
+        let signature = draftTrigger
         do {
             try await EditorDraftStore.shared.save(value, scope: draftScope, recordID: record?.id)
+            lastSavedDraft = signature
             draftStatus = "草稿已保存在本机"
             return true
         } catch is CancellationError { return false }

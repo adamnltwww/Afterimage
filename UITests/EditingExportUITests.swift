@@ -7,7 +7,6 @@ final class EditingExportUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["memory.add"].waitForExistence(timeout: 10))
         app.buttons["memory.add"].tap()
-        let title = app.textFields["memory.title"]
         let input = app.descendants(matching: .any).matching(identifier: "memory.title").firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         input.tap(); input.typeText("Draft continuity")
@@ -18,11 +17,10 @@ final class EditingExportUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["已恢复上次草稿"].waitForExistence(timeout: 5))
         XCTAssertTrue(String(describing: input.value ?? "").contains("Draft continuity"))
         app.buttons["memory.cancel"].tap()
-        app.buttons["memory.discard"].tap()
+        app.buttons.matching(identifier: "memory.discard").firstMatch.tap()
         app.buttons["timeline.index"].tap()
         XCTAssertTrue(app.navigationBars["时间索引"].waitForExistence(timeout: 5))
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "index-aligned-separators"; screenshot.lifetime = .keepAlways; add(screenshot)
-        _ = title
     }
 }
