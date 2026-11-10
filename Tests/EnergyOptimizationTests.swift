@@ -17,7 +17,7 @@ import XCTest
         XCTAssertEqual(clock.time, frozen, "Resume must retain the rendered phase")
         clock.setVisible(false)
     }
-    func testDecorativeClockContinuesSlowlyAfterIdle() async throws {
+    func testDecorativeClockKeepsNormalSpeedAfterIdle() async throws {
         let clock = DecorativeMotion()
         clock.setVisible(true)
         try await Task.sleep(for: .milliseconds(3400))
@@ -25,8 +25,9 @@ import XCTest
         let started = Date()
         try await Task.sleep(for: .milliseconds(200))
         let delta = clock.time - before
-        XCTAssertGreaterThan(delta, 0, "Visible idle silk must keep flowing")
-        XCTAssertLessThan(delta, Date().timeIntervalSince(started) * 0.85, "Idle flow should be slower than interaction flow")
+        let elapsed = Date().timeIntervalSince(started)
+        XCTAssertGreaterThan(delta, elapsed * 0.7, "Idle time must not slow visible silk")
+        XCTAssertLessThan(delta, elapsed * 1.3, "Animation must retain its normal pace")
         clock.setVisible(false)
     }
     func testPreparationReusesScrollingWorkButInvalidatesChangedData() {
