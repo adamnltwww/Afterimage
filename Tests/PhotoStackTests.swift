@@ -7,10 +7,13 @@ final class PhotoStackTests: XCTestCase {
     func testLiveLayersKeepCenteredPileAndExchangeWithoutSnapshots() async throws {
         let deck = MemoryPhotoStackController()
         deck.update(cover: photo(.red), additional: try JSONEncoder().encode([photo(.green), photo(.blue)]))
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 360))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previousKey = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 320, height: 360)
         window.rootViewController = deck
-        window.isHidden = false
-        defer { window.isHidden = true }
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previousKey?.makeKey() }
         try await Task.sleep(for: .milliseconds(250))
         deck.view.setNeedsLayout()
         deck.view.layoutIfNeeded()
@@ -26,8 +29,8 @@ final class PhotoStackTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(90))
             XCTAssertEqual(Set(deck.view.subviews.compactMap { $0 as? UIImageView }.map(ObjectIdentifier.init)), identities)
             XCTAssertEqual(deck.view.subviews.count, 5, "Only live photo views and the counter should exist")
-            let image = UIGraphicsImageRenderer(bounds: deck.view.bounds).image { _ in
-                deck.view.drawHierarchy(in: deck.view.bounds, afterScreenUpdates: false)
+            let image = UIGraphicsImageRenderer(bounds: deck.view.bounds).image { context in
+                (deck.view.layer.presentation() ?? deck.view.layer).render(in: context.cgContext)
             }
             let attachment = XCTAttachment(image: image)
             attachment.name = "live-deck-\(frame)"
@@ -103,3 +106,4 @@ final class PhotoStackTests: XCTestCase {
         XCTAssertEqual(deck.view.accessibilityValue, "1")
     }
 }
+
