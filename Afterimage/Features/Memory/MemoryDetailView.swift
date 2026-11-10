@@ -44,13 +44,9 @@ struct MemoryDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    ForEach(Array(record.photos.enumerated()), id: \.offset) { index, data in
-                        VStack(alignment: .leading, spacing: 8) {
-                            PhotoViewerEntry(data: data)
-                            if record.photos.count > 1 {
-                                Text("\(index + 1) / \(record.photos.count)").font(.caption2).foregroundStyle(.secondary)
-                            }
-                        }
+                    if record.photoData != nil {
+                        MemoryPhotoStack(cover: record.photoData, additional: record.additionalPhotoData)
+                            .frame(height: 340)
                     }
                     VStack(alignment: .leading, spacing: 14) {
                         Text(record.occurredAt.formatted(date: .long, time: .shortened))

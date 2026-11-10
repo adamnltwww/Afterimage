@@ -165,8 +165,8 @@ jobs:
           if [ -d build/Tests.xcresult ]; then
             xcrun xcresulttool export attachments --path build/Tests.xcresult --output-path build/screenshots || true
           fi
-      - name: Verify browsing and deletion recovery
-        if: ${{ env.APP_VERSION == '1.0.7' }}
+      - name: Verify photo deck and browsing
+        if: ${{ env.APP_VERSION == '1.0.8' }}
         timeout-minutes: 10
         shell: bash
         run: |
@@ -177,10 +177,11 @@ jobs:
             -derivedDataPath build/Simulator -resultBundlePath build/Browsing.xcresult \
             -parallel-testing-enabled NO -only-testing:AfterimageTests/EnergyOptimizationTests \
             -only-testing:AfterimageTests/BrowsingRefinementTests \
+            -only-testing:AfterimageTests/PhotoStackTests \
             CODE_SIGNING_ALLOWED=NO MARKETING_VERSION="$APP_VERSION" \
             CURRENT_PROJECT_VERSION="$APP_BUILD" test 2>&1 | tee build/browsing-tests.log
       - name: Export editing and long-image evidence
-        if: ${{ always() && env.APP_VERSION == '1.0.7' }}
+        if: ${{ always() && env.APP_VERSION == '1.0.8' }}
         run: |
           if [ -d build/Browsing.xcresult ]; then
             xcrun xcresulttool export attachments --path build/Browsing.xcresult --output-path build/editing-evidence || true

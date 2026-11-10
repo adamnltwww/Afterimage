@@ -165,32 +165,31 @@ struct TimelineMemoryColumn: View {
             }
             .position(x: 130, y: nodeY)
 
-            Button { select(memory) } label: {
-                Group {
+            Group {
                     if compactPhoto {
                         HStack(alignment: .top, spacing: 10) {
-                            previewText
-                            MemoryVisual(id: memory.id, photoData: memory.photoData, preserveAspect: true)
-                                .frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 5))
+                            Button { select(memory) } label: { previewText }.buttonStyle(.plain)
+                            MemoryPhotoStack(cover: memory.photoData, additional: memory.additionalPhotoData,
+                                             opensPhoto: false, onTap: { select(memory) })
+                                .frame(width: 44, height: 44)
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 8) {
                             if memory.photoData != nil && photoHeight > 0 {
-                                MemoryVisual(id: memory.id, photoData: memory.photoData, preserveAspect: true)
-                                    .frame(height: photoHeight).clipShape(RoundedRectangle(cornerRadius: 6))
+                                MemoryPhotoStack(cover: memory.photoData, additional: memory.additionalPhotoData,
+                                                 opensPhoto: false, onTap: { select(memory) })
+                                    .frame(height: photoHeight)
                             }
+                            Button { select(memory) } label: {
                             previewText
+                            }.buttonStyle(.plain)
                         }
                     }
                 }
                 .frame(width: previewWidth, height: cardHeight, alignment: (!above && activeProgress < 0.2) ? .topLeading : .bottomLeading)
                 .background { AfterimageStyle.background.opacity(activeProgress * 0.65).blur(radius: 10) }
                 .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(memory.occurredAt.formatted(date: .abbreviated, time: .omitted))，\(memory.displayTitle)")
-            .accessibilityHint("查看完整内容")
+            .accessibilityElement(children: .contain)
             .opacity(previewOpacity)
             .scaleEffect(engaged ? 1.012 : 1, anchor: cardY < nodeY ? .bottom : .top)
             .position(x: 130, y: cardY)
