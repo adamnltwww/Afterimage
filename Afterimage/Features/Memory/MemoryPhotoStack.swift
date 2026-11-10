@@ -87,8 +87,8 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
         view.accessibilityIdentifier = "photo.stack"
         view.accessibilityTraits = [.button, .adjustable]
         view.accessibilityCustomActions = [
-            UIAccessibilityCustomAction(name: "上一张照片", target: self, selector: #selector(previous)),
-            UIAccessibilityCustomAction(name: "下一张照片", target: self, selector: #selector(next))
+            UIAccessibilityCustomAction(name: "上一张照片", target: self, selector: #selector(showPreviousPhoto)),
+            UIAccessibilityCustomAction(name: "下一张照片", target: self, selector: #selector(showNextPhoto))
         ]
     }
 
@@ -253,8 +253,8 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
         } completion: { _ in outgoing?.removeFromSuperview() }
     }
 
-    @objc private func previous() -> Bool { turn(-1); return true }
-    @objc private func next() -> Bool { turn(1); return true }
+    @objc private func showPreviousPhoto() -> Bool { turn(-1); return true }
+    @objc private func showNextPhoto() -> Bool { turn(1); return true }
 
     @objc private func open() {
         guard opensPhoto else { onTap?(); return }
@@ -273,3 +273,4 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
         PhotoTransition(source: cards[0], opening: false)
     }
 }
+
