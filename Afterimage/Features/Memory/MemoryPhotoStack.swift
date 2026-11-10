@@ -192,8 +192,9 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
             let scale = min(area.width / max(1, size.width), area.height / max(1, size.height))
             let fitted = CGSize(width: size.width * scale, height: size.height * scale)
             card.bounds = CGRect(origin: .zero, size: fitted)
-            card.center = CGPoint(x: area.midX + CGFloat(depth) * spread * 0.45,
-                                  y: area.midY - CGFloat(depth) * 4)
+            // The reference is a centered pile, not a staircase. Rear sheets
+            // straddle the front sheet and share its optical center.
+            card.center = restingCenter(depth, around: CGPoint(x: area.midX, y: area.midY))
             card.layer.borderWidth = stacked ? 0.5 : 0
             card.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
             card.transform = restingTransform(depth)
@@ -223,8 +224,15 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
     }
 
     private func restingTransform(_ depth: Int) -> CGAffineTransform {
-        CGAffineTransform(rotationAngle: depth == 1 ? -0.075 : CGFloat(depth) * 0.06)
-            .scaledBy(x: 1 - CGFloat(depth) * 0.025, y: 1 - CGFloat(depth) * 0.025)
+        let angle: CGFloat = depth == 0 ? 0 : depth % 2 == 1 ? -0.065 : 0.055
+        return CGAffineTransform(rotationAngle: angle)
+            .scaledBy(x: 1 - CGFloat(depth) * 0.012, y: 1 - CGFloat(depth) * 0.012)
+    }
+
+    private func restingCenter(_ depth: Int, around center: CGPoint) -> CGPoint {
+        let offset = min(5, view.bounds.width * 0.025)
+        return CGPoint(x: center.x + (depth == 0 ? 0 : depth % 2 == 1 ? -offset : offset),
+                       y: center.y - CGFloat(min(depth, 2)) * 3)
     }
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -340,6 +348,7 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
             }
             for depth in 1..<count where direction > 0 {
                 deck[depth].transform = self.restingTransform(depth - 1)
+                deck[depth].center = self.restingCenter(depth - 1, around: homeCenter)
             }
         } completion: { [weak self] _ in
             guard let self, self.turnToken == token else { return }
@@ -351,12 +360,17 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
             UIView.animate(withDuration: self.reduceMotion ? 0 : 0.34, delay: 0,
                            usingSpringWithDamping: 0.92, initialSpringVelocity: 0,
                            options: [.beginFromCurrentState, .allowUserInteraction]) {
-                moving.center = homeCenter
+                moving.center = self.restingCenter(direction > 0 ? count - 1 : 0, around: homeCenter)
                 moving.transform = self.restingTransform(direction > 0 ? count - 1 : 0)
                 if direction > 0 {
                     deck[1].center = homeCenter
                 } else {
                     front.transform = self.restingTransform(1)
+                    front.center = self.restingCenter(1, around: homeCenter)
+                    for depth in 1..<count {
+                        deck[depth].transform = self.restingTransform(depth + 1)
+                        deck[depth].center = self.restingCenter(depth + 1, around: homeCenter)
+                    }
                 }
             } completion: { [weak self] _ in
                 guard let self, self.turnToken == token else { return }

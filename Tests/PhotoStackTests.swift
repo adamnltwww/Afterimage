@@ -4,6 +4,42 @@ import UIKit
 
 @MainActor
 final class PhotoStackTests: XCTestCase {
+    func testLiveLayersKeepCenteredPileAndExchangeWithoutSnapshots() async throws {
+        let deck = MemoryPhotoStackController()
+        deck.update(cover: photo(.red), additional: try JSONEncoder().encode([photo(.green), photo(.blue)]))
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 360))
+        window.rootViewController = deck
+        window.isHidden = false
+        defer { window.isHidden = true }
+        try await Task.sleep(for: .milliseconds(250))
+        deck.view.setNeedsLayout()
+        deck.view.layoutIfNeeded()
+        let original = deck.view.subviews.compactMap { $0 as? UIImageView }
+        let front = try XCTUnwrap(original.last)
+        XCTAssertEqual(front.center.x, deck.view.bounds.midX, accuracy: 0.5)
+        let rear = original.filter { !$0.isHidden && $0 !== front }
+        XCTAssertTrue(rear.contains { $0.center.x < front.center.x })
+        XCTAssertTrue(rear.contains { $0.center.x > front.center.x })
+        let identities = Set(original.map(ObjectIdentifier.init))
+        deck.view.accessibilityIncrement()
+        for frame in 0..<8 {
+            try await Task.sleep(for: .milliseconds(90))
+            XCTAssertEqual(Set(deck.view.subviews.compactMap { $0 as? UIImageView }.map(ObjectIdentifier.init)), identities)
+            XCTAssertEqual(deck.view.subviews.count, 5, "Only live photo views and the counter should exist")
+            let image = UIGraphicsImageRenderer(bounds: deck.view.bounds).image { _ in
+                deck.view.drawHierarchy(in: deck.view.bounds, afterScreenUpdates: false)
+            }
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "live-deck-\(frame)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+        XCTAssertEqual(deck.view.accessibilityValue, "2")
+        let newFront = try XCTUnwrap(deck.view.subviews.compactMap { $0 as? UIImageView }.last)
+        XCTAssertFalse(front === newFront)
+        XCTAssertEqual(newFront.center.x, deck.view.bounds.midX, accuracy: 0.5)
+    }
+
     func testCounterFollowsPhotoAndHidesAfterBrowsingStops() async throws {
         let deck = MemoryPhotoStackController()
         deck.reduceMotion = true
