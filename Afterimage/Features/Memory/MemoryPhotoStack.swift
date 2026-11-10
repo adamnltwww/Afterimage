@@ -46,13 +46,13 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
     private var index = 0
     private var generation = UUID()
     private var pending = Set<Int>()
-    private let cards = (0..<3).map { _ in UIImageView() }
+    private var cards = (0..<4).map { _ in UIImageView() }
     private let counter = UILabel()
     private var dragging = false
     private var photoPan: UIPanGestureRecognizer!
-    private var turningPhoto: UIView?
     private var turnToken = UUID()
     private var hideCounter: DispatchWorkItem?
+    private var turning = false
 
     override func loadView() {
         let surface = PhotoStackSurface()
@@ -69,7 +69,7 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
         }
         view.backgroundColor = .clear
         for card in cards.reversed() {
-            card.contentMode = .scaleAspectFit
+            card.contentMode = .scaleAspectFill
             card.clipsToBounds = true
             card.layer.cornerRadius = 9
             card.layer.cornerCurve = .continuous
@@ -106,9 +106,8 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
         hideCounter?.cancel()
         counter.alpha = 0
         turnToken = UUID()
-        turningPhoto?.removeFromSuperview()
-        turningPhoto = nil
         dragging = false
+        turning = false
         cards.forEach { $0.layer.removeAllAnimations() }
         generation = UUID()
         pending.removeAll()
@@ -121,13 +120,13 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
     private func refresh() {
         for depth in cards.indices {
             let position = photoIndex(depth)
-            cards[depth].isHidden = depth >= photos.count
+            cards[depth].isHidden = depth >= min(3, photos.count)
             cards[depth].image = images[position]
             if depth < photos.count { prepare(position) }
         }
         if photos.count > 1 { prepare((index - 1 + photos.count) % photos.count) }
         // Keep only the visible deck and its immediate predecessor decoded.
-        let keep = Set((0..<min(3, photos.count)).map(photoIndex) + [((index - 1 + photos.count) % max(1, photos.count))])
+        let keep = Set((0..<min(4, photos.count)).map(photoIndex) + [((index - 1 + photos.count) % max(1, photos.count))])
         images = images.filter { keep.contains($0.key) }
         counter.text = photos.count > 1 ? "\(index + 1) / \(photos.count)" : nil
         view.accessibilityLabel = "照片，\(index + 1) / \(photos.count)"
@@ -157,7 +156,7 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
             guard let self, self.generation == token else { return }
             self.pending.remove(position)
             if let image { self.images[position] = image }
-            for depth in self.cards.indices where self.photoIndex(depth) == position {
+            for depth in self.cards.indices where !self.turning && self.photoIndex(depth) == position {
                 self.cards[depth].image = image
             }
             self.view.setNeedsLayout()
@@ -175,22 +174,25 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
             }
             ancestor = current.superview
         }
-        guard !dragging else { return }
+        guard !dragging && !turning else { return }
         let stacked = photos.count > 1
         let showsCounter = stacked && view.bounds.height >= 70
         counter.isHidden = !showsCounter
         let spread = min(14, view.bounds.width * 0.065)
-        let area = CGRect(x: stacked ? 4 : 0, y: stacked ? 12 : 0,
-                          width: max(1, view.bounds.width - (stacked ? spread * 2 + 8 : 0)),
+        let areaWidth = max(1, view.bounds.width - (stacked ? spread * 2 + 8 : 0))
+        let area = CGRect(x: (view.bounds.width - areaWidth) / 2, y: stacked ? 12 : 0,
+                          width: areaWidth,
                           height: max(1, view.bounds.height - (showsCounter ? 42 : stacked ? 20 : 0)))
         for depth in cards.indices {
             let card = cards[depth]
             card.transform = .identity
-            let size = card.image?.size ?? CGSize(width: 4, height: 3)
+            // A stable footprint prevents mixed portrait/landscape photos from
+            // changing the entire deck's geometry during a layer exchange.
+            let size = images[0]?.size ?? CGSize(width: 4, height: 3)
             let scale = min(area.width / max(1, size.width), area.height / max(1, size.height))
             let fitted = CGSize(width: size.width * scale, height: size.height * scale)
             card.bounds = CGRect(origin: .zero, size: fitted)
-            card.center = CGPoint(x: area.minX + fitted.width / 2 + CGFloat(depth) * spread,
+            card.center = CGPoint(x: area.midX + CGFloat(depth) * spread * 0.45,
                                   y: area.midY - CGFloat(depth) * 4)
             card.layer.borderWidth = stacked ? 0.5 : 0
             card.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
@@ -235,6 +237,17 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
         let translation = gesture.translation(in: view).x
         switch gesture.state {
         case .began:
+            if turning {
+                turnToken = UUID()
+                for card in cards {
+                    if let shown = card.layer.presentation() {
+                        card.center = shown.position
+                        card.transform = shown.affineTransform()
+                    }
+                    card.layer.removeAllAnimations()
+                }
+                turning = false
+            }
             revealCounter(hideAfterDelay: false)
             if let shown = cards[0].layer.presentation() { cards[0].transform = shown.affineTransform() }
             gesture.setTranslation(CGPoint(x: cards[0].transform.tx, y: 0), in: view)
@@ -269,52 +282,87 @@ final class MemoryPhotoStackController: UIViewController, UIGestureRecognizerDel
 
     private func turn(_ direction: Int) {
         guard photos.count > 1 else { return }
+        if reduceMotion {
+            index = (index + direction + photos.count) % photos.count
+            refresh()
+            revealCounter(hideAfterDelay: true)
+            return
+        }
         turnToken = UUID()
         let token = turnToken
-        turningPhoto?.removeFromSuperview()
-        let outgoing = cards[0].snapshotView(afterScreenUpdates: false)
-        outgoing?.bounds = cards[0].bounds
-        outgoing?.center = cards[0].center
-        outgoing?.transform = cards[0].transform
-        if let outgoing { outgoing.isUserInteractionEnabled = false; view.insertSubview(outgoing, belowSubview: counter) }
-        turningPhoto = outgoing
-        let incoming = cards[direction > 0 ? 1 : min(2, photos.count - 1)]
-        let incomingCenter = incoming.center
-        let incomingTransform = incoming.transform
-        index = (index + direction + photos.count) % photos.count
-        cards.forEach { $0.layer.removeAllAnimations() }
-        refresh()
-        revealCounter(hideAfterDelay: true)
-        let frontCenter = cards[0].center
-        if !reduceMotion {
-            cards[0].center = incomingCenter
-            cards[0].transform = incomingTransform
+        // Freeze the real image layers at their visible positions before retargeting.
+        for card in cards {
+            if let shown = card.layer.presentation() {
+                card.center = shown.position
+                card.transform = shown.affineTransform()
+            }
+            card.layer.removeAllAnimations()
         }
-        UIView.animate(withDuration: reduceMotion ? 0 : 0.24, delay: 0,
-                       usingSpringWithDamping: 0.9, initialSpringVelocity: 0,
+        turning = true
+        revealCounter(hideAfterDelay: true)
+        let count = min(3, photos.count)
+        let deck = cards
+        let front = cards[0]
+        let homeCenter = front.center
+        let distance = max(1, front.bounds.width) * 0.62
+        let nextIndex = (index + direction + photos.count) % photos.count
+        let moving: UIImageView
+        if direction > 0 {
+            moving = front
+        } else {
+            moving = cards[3]
+            moving.image = images[nextIndex]
+            // The predecessor is decoded ahead of time, never replace the front image.
+            moving.bounds = front.bounds
+            moving.center = homeCenter
+            moving.transform = restingTransform(count - 1)
+            moving.isHidden = false
+            view.insertSubview(moving, belowSubview: cards[count - 1])
+        }
+        if direction > 0 {
+            cards.removeFirst()
+            cards.insert(moving, at: min(photos.count - 1, cards.count))
+        } else {
+            cards.removeLast()
+            cards.insert(moving, at: 0)
+        }
+        index = nextIndex
+        counter.text = "\(index + 1) / \(photos.count)"
+        view.accessibilityValue = "\(index + 1)"
+        let side = CGFloat(direction > 0 ? -1 : 1)
+        UIView.animate(withDuration: reduceMotion ? 0 : 0.22, delay: 0,
+                       usingSpringWithDamping: 1, initialSpringVelocity: 0,
                        options: [.beginFromCurrentState, .allowUserInteraction]) {
-            self.cards[0].center = frontCenter
-            self.cards[0].transform = .identity
-            self.positionCounter()
             if !self.reduceMotion {
-                outgoing?.transform = CGAffineTransform(translationX: -CGFloat(direction) * self.view.bounds.width * 0.8, y: -12)
-                    .rotated(by: -CGFloat(direction) * 0.2)
+                moving.center = CGPoint(x: homeCenter.x + side * distance, y: homeCenter.y + 3)
+                moving.transform = CGAffineTransform(rotationAngle: side * 0.16)
+                    .scaledBy(x: 0.97, y: 0.97)
+            }
+            for depth in 1..<count where direction > 0 {
+                deck[depth].transform = self.restingTransform(depth - 1)
             }
         } completion: { [weak self] _ in
-            guard let self, self.turnToken == token, let outgoing else { return }
-            // Change depth only once the photograph has cleared the front card,
-            // then return it behind the deck at full opacity.
-            self.view.insertSubview(outgoing, belowSubview: self.cards[min(2, self.photos.count - 1)])
-            let back = self.cards[min(2, self.photos.count - 1)]
-            UIView.animate(withDuration: self.reduceMotion ? 0 : 0.3, delay: 0,
-                           usingSpringWithDamping: 0.88, initialSpringVelocity: 0,
+            guard let self, self.turnToken == token else { return }
+            if direction > 0 {
+                self.view.insertSubview(moving, belowSubview: deck[count - 1])
+            } else {
+                self.view.insertSubview(moving, belowSubview: self.counter)
+            }
+            UIView.animate(withDuration: self.reduceMotion ? 0 : 0.34, delay: 0,
+                           usingSpringWithDamping: 0.92, initialSpringVelocity: 0,
                            options: [.beginFromCurrentState, .allowUserInteraction]) {
-                outgoing.center = back.center
-                outgoing.bounds = back.bounds
-                outgoing.transform = back.transform
+                moving.center = homeCenter
+                moving.transform = self.restingTransform(direction > 0 ? count - 1 : 0)
+                if direction > 0 {
+                    deck[1].center = homeCenter
+                } else {
+                    front.transform = self.restingTransform(1)
+                }
             } completion: { [weak self] _ in
-                outgoing.removeFromSuperview()
-                if self?.turnToken == token { self?.turningPhoto = nil }
+                guard let self, self.turnToken == token else { return }
+                self.turning = false
+                for card in self.cards.reversed() { self.view.insertSubview(card, belowSubview: self.counter) }
+                self.refresh()
             }
         }
     }

@@ -16,6 +16,7 @@ final class PhotoStackTests: XCTestCase {
         deck.view.accessibilityIncrement()
         XCTAssertEqual(counter.alpha, 1)
         let front = try XCTUnwrap(deck.view.subviews.compactMap { $0 as? UIImageView }.last)
+        XCTAssertEqual(front.center.x, deck.view.bounds.midX, accuracy: 0.5, "The detail photo must be centered")
         XCTAssertEqual(counter.frame.maxX, front.frame.maxX, accuracy: 0.5)
         XCTAssertEqual(counter.frame.minY, front.frame.maxY + 4, accuracy: 0.5)
         try await Task.sleep(for: .milliseconds(1300))
@@ -42,7 +43,7 @@ final class PhotoStackTests: XCTestCase {
         }
         deck.view.setNeedsLayout()
         deck.view.layoutIfNeeded()
-        XCTAssertTrue(deck.view.point(inside: CGPoint(x: 30, y: 60), with: nil))
+        XCTAssertTrue(deck.view.point(inside: CGPoint(x: 84, y: 60), with: nil))
         XCTAssertFalse(deck.view.point(inside: CGPoint(x: 150, y: 60), with: nil), "Transparent space must belong to the timeline")
         XCTAssertFalse(deck.view.point(inside: CGPoint(x: 0, y: 0), with: nil), "Rounded corner must not intercept scrolling")
         XCTAssertTrue(deck.view.accessibilityActivate())
