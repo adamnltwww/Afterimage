@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 struct TimelineMemoryColumn: View {
+    @Environment(\.decorativeMotion) private var decorativeMotion
     @AppStorage(AppPreferences.summariesKey) private var showSummaries = true
     let memory: MemoryRecord
     let x: Double
@@ -75,8 +76,8 @@ struct TimelineMemoryColumn: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || scenePhase != .active)) { timeline in
-                let time = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: decorativeMotion != nil || reduceMotion || scenePhase != .active)) { timeline in
+                let time = reduceMotion ? 0 : (decorativeMotion?.time ?? timeline.date.timeIntervalSinceReferenceDate)
                 Canvas(rendersAsynchronously: true) { context, _ in
                 let base = TimelineLayout.y(at: x) * verticalScale
                 if threadMember {

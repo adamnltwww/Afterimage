@@ -157,15 +157,17 @@ enum SilkRenderer {
         var atmosphere = original
         atmosphere.addFilter(.blur(radius: 19))
         atmosphere.stroke(centre, with: .color(AfterimageStyle.amber.opacity(0.10 * pow(1 - openingAmount, 2))), lineWidth: 18)
-        for fibre in fibres {
-            var far = original
-            far.addFilter(.blur(radius: 0.7))
-            far.opacity = 0.45
-            far.stroke(fibre.whole, with: fibre.light, lineWidth: fibre.thickness)
-            var halo = original
-            halo.addFilter(.blur(radius: 3.5))
-            halo.opacity = 0.17
-            halo.stroke(fibre.whole, with: fibre.light, lineWidth: 3.5)
+        var far = original
+        far.addFilter(.blur(radius: 0.7))
+        far.opacity = 0.45
+        far.drawLayer { layer in
+            for fibre in fibres { layer.stroke(fibre.whole, with: fibre.light, lineWidth: fibre.thickness) }
+        }
+        var halo = original
+        halo.addFilter(.blur(radius: 3.5))
+        halo.opacity = 0.17
+        halo.drawLayer { layer in
+            for fibre in fibres { layer.stroke(fibre.whole, with: fibre.light, lineWidth: 3.5) }
         }
 
         // A narrow opaque waist occludes the rear fibres where they pass behind the axis.

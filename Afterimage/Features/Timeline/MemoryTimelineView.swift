@@ -19,6 +19,8 @@ struct MemoryTimelineView: View {
     @State private var focusedID: UUID?
     @State private var threadMotion = ThreadMotion()
     @State private var contentOffset = 0.0
+    @State private var preparation = TimelinePreparationCache()
+    @Environment(\.decorativeMotion) private var decorativeMotion
 
     private var themes: [MemoryTag] {
         var tags: [String: MemoryTag] = [:]
@@ -61,15 +63,17 @@ struct MemoryTimelineView: View {
         let reveal = opening?.contentOpacity ?? 1
         return GeometryReader { geometry in
             let canvasHeight = max(1, geometry.size.height - 12 - (dateFilter.mode == .all ? 0 : 56))
-            let memories = ordered
-            let layout = TimelineLayout(dates: memories.map(\.occurredAt), viewport: geometry.size.width)
+            let prepared = prepare(width: geometry.size.width)
+            let memories = prepared.memories
+            let layout = prepared.layout
+            let themes = prepared.themes
             let drawStart = floor(contentOffset / max(1, geometry.size.width)) * max(1, geometry.size.width) - geometry.size.width
             let drawEnd = drawStart + geometry.size.width * 3
-            let linkedIDs = Resonance.linkedIDs(in: memories, choices: linkChoices)
-            let spans = weaveSpans(memories: memories, positions: layout.positions)
+            let linkedIDs = prepared.linkedIDs
+            let spans = prepared.spans
             let selectedInk = ThemePalette.ink(themes.first(where: { $0.key == selectedTheme })?.colorIndex)
-            let members = selectedTheme.map { Resonance.threadMembers(tag: $0, memories: memories, choices: linkChoices) } ?? []
-            let memberPositions = memories.enumerated().filter { members.contains($0.element.id) }.map { layout.positions[$0.offset] }
+            let members = prepared.members
+            let memberPositions = prepared.memberPositions
             ScrollViewReader { proxy in
                 VStack(alignment: .leading, spacing: 12) {
                     ThreadControls(themes: themes, selectedKey: $selectedTheme, count: members.count, motion: threadMotion, openTheme: { readingTheme = $0 }, openIndex: { showIndex = true })
@@ -149,6 +153,7 @@ struct MemoryTimelineView: View {
                         reportPosition(contentOffset, layout: layout, viewport: geometry.size.width, memories: memories)
                     }
                     .onChange(of: selectedTheme) { _, _ in
+                        decorativeMotion?.wake()
                         focusedID = nil
                         move(to: memories.last(where: { members.contains($0.id) })?.id, proxy: proxy)
                     }
@@ -159,7 +164,15 @@ struct MemoryTimelineView: View {
                         }
                     }
                     .onDisappear { threadMotion.suspend(); scrubber?.stop() }
+                    .onChange(of: decorativeMotion?.visible) { _, visible in
+                        if visible == false { threadMotion.suspend() }
+                    }
+                    .onChange(of: threadMotion.target) { _, _ in decorativeMotion?.wake() }
                     .onChange(of: showIndex) { _, shown in if shown { scrubber?.stop() } }
+                    .onChange(of: showIndex || readingTheme != nil, initial: true) { _, covered in
+                        if covered { decorativeMotion?.setVisible(false); threadMotion.suspend() }
+                        else { decorativeMotion?.setVisible(scenePhase == .active && !reduceMotion) }
+                    }
                     .onChange(of: scenePhase) { _, phase in
                         if phase != .active { threadMotion.suspend(); scrubber?.stop() }
                     }
@@ -188,8 +201,26 @@ struct MemoryTimelineView: View {
     }
 
     private func reportPosition(_ offset: Double, layout: TimelineLayout, viewport: Double, memories: [MemoryRecord]) {
+        decorativeMotion?.wake()
         let date = layout.nearestIndex(at: offset, viewport: viewport).map { memories[$0].occurredAt }
         browsingProgress(layout.browsingProgress(at: offset, viewport: viewport), date)
+    }
+
+    private func prepare(width: Double) -> TimelinePreparationCache.Value {
+        let key = TimelinePreparationCache.Key(records: records.map { record in
+            .init(id: record.id, occurredAt: record.occurredAt, createdAt: record.createdAt,
+                  tags: record.tags.map { .init(key: $0.key, name: $0.name, color: $0.colorIndex) })
+        }, links: linkChoices.map { .init(key: $0.key, enabled: $0.isEnabled) }, filter: dateFilter,
+           width: width, theme: selectedTheme, focus: focusedID)
+        return preparation.resolve(key: key) {
+            let memories = ordered
+            let layout = TimelineLayout(dates: memories.map(\.occurredAt), viewport: width)
+            let members = selectedTheme.map { Resonance.threadMembers(tag: $0, memories: memories, choices: linkChoices) } ?? []
+            return .init(memories: memories, themes: themes, layout: layout,
+                         linkedIDs: Resonance.linkedIDs(in: memories, choices: linkChoices),
+                         spans: weaveSpans(memories: memories, positions: layout.positions), members: members,
+                         memberPositions: memories.enumerated().filter { members.contains($0.element.id) }.map { layout.positions[$0.offset] })
+        }
     }
 }
 

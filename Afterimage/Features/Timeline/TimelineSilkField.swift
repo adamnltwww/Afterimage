@@ -27,6 +27,7 @@ struct TimelineSilkField: View {
     @Environment(\.afterimageReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openingPresentation) private var opening
+    @Environment(\.decorativeMotion) private var decorativeMotion
     var body: some View {
         let blocking = opening?.isBlocking == true
         // Launch only moves the wordmark; the settled axis fades in afterwards.
@@ -35,8 +36,8 @@ struct TimelineSilkField: View {
         let silkOpacity = opening?.silkOpacity ?? 1
         let silkBegan = opening?.silkBegan
         return TimelineView(.animation(minimumInterval: 1.0 / 30,
-                                paused: silkOpacity == 0 || sampleTime != nil || reduceMotion || scenePhase != .active)) { timeline in
-        let time = sampleTime ?? (reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate)
+                                paused: decorativeMotion != nil || silkOpacity == 0 || sampleTime != nil || reduceMotion || scenePhase != .active)) { timeline in
+        let time = sampleTime ?? (reduceMotion ? 0 : (decorativeMotion?.time ?? timeline.date.timeIntervalSinceReferenceDate))
         ZStack(alignment: .topLeading) {
             ForEach(Array(SilkTiling.indices(offset: offset, viewport: viewport)), id: \.self) { index in
                 TimelineSilkTile(origin: Double(index) * SilkTiling.width, height: height,

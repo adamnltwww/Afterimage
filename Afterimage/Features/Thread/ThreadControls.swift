@@ -9,6 +9,8 @@ struct ThreadControls: View {
     let openIndex: () -> Void
     @Environment(\.afterimageReduceMotion) private var reduceMotion
     @Environment(\.openingPresentation) private var opening
+    @Environment(\.decorativeMotion) private var decorativeMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showThemes = false
     @AppStorage("thread.didDiscoverLift") private var discoveredLift = false
     @State private var showLiftHint = false
@@ -73,6 +75,10 @@ struct ThreadControls: View {
                 } catch { showLiftHint = false }
             }
             .onChange(of: motion.isDragging) { _, dragging in if dragging { discoveredLift = true; showLiftHint = false } }
+            .onChange(of: showThemes) { _, shown in
+                decorativeMotion?.setVisible(!shown && scenePhase == .active && !reduceMotion)
+                if shown { motion.suspend() }
+            }
     }
     private var themeName: String { themes.first(where: { $0.key == selectedKey })?.name ?? "主题" }
     private var shortThemeName: String { themeName.count > 8 ? String(themeName.prefix(7)) + "…" : themeName }

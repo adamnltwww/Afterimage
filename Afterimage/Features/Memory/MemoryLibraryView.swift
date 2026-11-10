@@ -4,6 +4,9 @@ import SwiftData
 struct MemoryLibraryView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.openingPresentation) private var opening
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.afterimageReduceMotion) private var reduceMotion
+    @State private var decorativeMotion = DecorativeMotion()
     @Query(sort: [SortDescriptor(\MemoryRecord.occurredAt, order: .reverse),
                   SortDescriptor(\MemoryRecord.createdAt, order: .reverse)]) private var records: [MemoryRecord]
     let isDemo: Bool
@@ -63,6 +66,8 @@ struct MemoryLibraryView: View {
                     }
                 }
             }
+            .environment(\.decorativeMotion, decorativeMotion)
+            .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in decorativeMotion.wake() })
             .background(AfterimageStyle.background)
             .scrollIndicators(.hidden)
             .navigationTitle("")
@@ -135,12 +140,19 @@ struct MemoryLibraryView: View {
             } message: { Text(errorMessage ?? "") }
         }
         .onAppear { context.autosaveEnabled = false }
+        .onChange(of: homeAnimationVisible, initial: true) { _, visible in decorativeMotion.setVisible(visible) }
+        .onDisappear { decorativeMotion.setVisible(false) }
         .onChange(of: showMore) { _, shown in if shown { timelineScrubber.stop() } }
         .onChange(of: createMemory) { _, shown in if shown { timelineScrubber.stop() } }
         .onChange(of: selected?.id) { _, _ in timelineScrubber.stop() }
         .overlay {
             if !isDemo, let opening { OpeningWordmark(presentation: opening) }
         }
+    }
+
+    private var homeAnimationVisible: Bool {
+        scenePhase == .active && !reduceMotion && !createMemory && selected == nil && !showMore &&
+        !showReview && !showBackup && !showThemes && !showComparison && !showHelp && !showSettings && moreDestination == nil
     }
 
 
