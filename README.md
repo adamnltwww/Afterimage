@@ -2,7 +2,9 @@
 
 <p align="center"><img src="Afterimage/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="120" alt="AFTERIMAGE 图标：暖金四角星与交叠光带" /></p>
 
-**1.0.1 · BUILD 99**　[下载 IPA](https://github.com/adamnltwww/Afterimage/releases/download/v1.0.1/AFTERIMAGE-1.0.1-build99.ipa) · [版本说明](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.1)
+**最新源码：1.0.8 · BUILD 114**　[构建记录](https://github.com/adamnltwww/Afterimage/actions/runs/42829490345) · [照片叠放交接说明](docs/PHOTO_STACK_HANDOFF.md)
+
+正式 Release 仍为 [1.0.1 · BUILD 99](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.1)。照片叠放动效尚未达到预期，本轮重做已暂停；编译与自动测试通过不代表视觉验收通过。
 
 ![AFTERIMAGE — 那些留下来的瞬间](docs/afterimage-banner.svg)
 
@@ -58,7 +60,7 @@ AFTERIMAGE 是一款使用 SwiftUI 与 SwiftData 构建的原生 iPhone 记忆�
 
 ### 让照片完整展开
 
-主轴上的照片是进入记忆的入口。打开瞬间后，多张照片沿阅读方向连续展开，文字与照片一起构成完整的记录。
+主轴与瞬间详情使用可滑动的照片叠放。详情页点当前照片可全屏查看。叠放布局与翻动效果仍有待完善，本轮重做已暂停。
 
 轻点照片进入全屏，可以双指缩放、放大后平移查看细节，再回到原来的阅读位置。无需把一组照片拆成多个瞬间。
 
@@ -77,7 +79,7 @@ AFTERIMAGE 是一款使用 SwiftUI 与 SwiftData 构建的原生 iPhone 记忆�
 
 选中想保留的瞬间，先查看完整长图预览，再通过系统分享菜单导出。纵向金色细丝贯穿画面，日期、照片与文字分列两侧，把一段时间连成一张图。
 
-当前一次最多选择 **12 个瞬间**；正文较长时显示摘要。预览与导出的内容一致，分享前可以检查顺序和文字。
+选择的瞬间数量不设上限，正文完整显示。支持高清 PNG 和 PDF 导出；较长的 PNG 按尺寸分图，PDF 保存在一个文件中，可包含多个页面。分享前可检查预览。
 
 <p align="center">
   <img src="docs/screenshots/long-image.png" width="360" alt="完整长图示例：纵向金色细丝串起两侧的日期、照片与文字" />
@@ -117,14 +119,14 @@ App 图标采用墨黑与暖金，以四角星为中心，光带与半透明弧�
 
 除「减少动态效果」外，各项默认开启。关闭推荐或摘要不会移除已有记录与主题。
 
-更多页将设置和「如何浏览与抽丝」放在前面，版本号独立显示在功能列表下方，默认无需上拉展开；小屏和较大字号仍可滚动查看。演示空间与构建链路测试入口已移除，使用说明补充了记录、照片、主题、关联、长图和备份的操作方式。
+更多页先排列功能选项，再排列「如何浏览与抽丝」和设置，版本号独立显示在功能列表下方，默认无需上拉展开；小屏和较大字号仍可滚动查看。演示空间与构建链路测试入口已移除，使用说明补充了记录、照片、主题、关联、长图和备份的操作方式。
 
 ## 获取安装包
 
 1. 打开 [1.0.1 发布页](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.1)，下载 `AFTERIMAGE-1.0.1-build99.ipa`。
 2. 使用自己的签名方式安装到 iPhone；本项目开发时使用 iloader。
 
-后续开发构建可在 [Actions](https://github.com/adamnltwww/Afterimage/actions) 中查看；Release 页面保留正式版本安装包。
+最新开发构建为 [1.0.8 · BUILD 114](https://github.com/adamnltwww/Afterimage/actions/runs/42829490345)，10 项专项测试通过。Actions 安装包有保留期限；Release 页面保留正式发布的安装包。
 
 构建产物是 **未签名的 arm64 IPA**，需要自行签名，不是 App Store 安装包。覆盖安装并保留现有数据时，请保持相同的 Bundle Identifier：`com.adamnltwww.afterimage`。备份重要记录后再更换安装环境。
 
@@ -165,4 +167,4 @@ project.yml       XcodeGen 配置
 
 ## 当前边界
 
-项目仍在持续打磨。地图、云端 AI、ECHO 与 DARKROOM 尚未纳入当前版本。新功能与界面变化以源码、构建结果和实际预览为准。
+当前照片叠放重做已暂停，最后状态及未完成的视觉验收记录于 [交接说明](docs/PHOTO_STACK_HANDOFF.md)。地图、云端 AI、ECHO 与 DARKROOM 尚未纳入当前版本。新功能与界面变化以源码、构建结果和实际预览为准。
