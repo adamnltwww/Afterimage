@@ -4,6 +4,24 @@ import UIKit
 
 @MainActor
 final class PhotoStackTests: XCTestCase {
+    func testCounterFollowsPhotoAndHidesAfterBrowsingStops() async throws {
+        let deck = MemoryPhotoStackController()
+        deck.reduceMotion = true
+        deck.update(cover: photo(.red), additional: try JSONEncoder().encode([photo(.green)]))
+        deck.view.frame = CGRect(x: 0, y: 0, width: 168, height: 130)
+        try await Task.sleep(for: .milliseconds(150))
+        deck.view.layoutIfNeeded()
+        let counter = try XCTUnwrap(deck.view.subviews.compactMap { $0 as? UILabel }.first)
+        XCTAssertEqual(counter.alpha, 0)
+        deck.view.accessibilityIncrement()
+        XCTAssertEqual(counter.alpha, 1)
+        let front = try XCTUnwrap(deck.view.subviews.compactMap { $0 as? UIImageView }.last)
+        XCTAssertEqual(counter.frame.maxX, front.frame.maxX, accuracy: 0.5)
+        XCTAssertEqual(counter.frame.minY, front.frame.maxY + 4, accuracy: 0.5)
+        try await Task.sleep(for: .milliseconds(1300))
+        XCTAssertEqual(counter.alpha, 0)
+    }
+
     private func photo(_ color: UIColor) -> Data {
         UIGraphicsImageRenderer(size: CGSize(width: 80, height: 160)).image { context in
             color.setFill()
