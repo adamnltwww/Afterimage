@@ -17,13 +17,16 @@ import XCTest
         XCTAssertEqual(clock.time, frozen, "Resume must retain the rendered phase")
         clock.setVisible(false)
     }
-    func testDecorativeClockQuietsAfterIdle() async throws {
+    func testDecorativeClockContinuesSlowlyAfterIdle() async throws {
         let clock = DecorativeMotion()
         clock.setVisible(true)
         try await Task.sleep(for: .milliseconds(3400))
-        let frozen = clock.time
+        let before = clock.time
+        let started = Date()
         try await Task.sleep(for: .milliseconds(200))
-        XCTAssertEqual(clock.time, frozen)
+        let delta = clock.time - before
+        XCTAssertGreaterThan(delta, 0, "Visible idle silk must keep flowing")
+        XCTAssertLessThan(delta, Date().timeIntervalSince(started) * 0.85, "Idle flow should be slower than interaction flow")
         clock.setVisible(false)
     }
     func testPreparationReusesScrollingWorkButInvalidatesChangedData() {
