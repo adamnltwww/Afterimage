@@ -166,7 +166,7 @@ jobs:
             xcrun xcresulttool export attachments --path build/Tests.xcresult --output-path build/screenshots || true
           fi
       - name: Verify photo deck and browsing
-        if: ${{ env.APP_VERSION == '1.0.8' }}
+        if: ${{ env.APP_VERSION == '1.0.8' || env.APP_VERSION == '1.0.9' }}
         timeout-minutes: 10
         shell: bash
         run: |
@@ -181,7 +181,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO MARKETING_VERSION="$APP_VERSION" \
             CURRENT_PROJECT_VERSION="$APP_BUILD" test 2>&1 | tee build/browsing-tests.log
       - name: Export editing and long-image evidence
-        if: ${{ always() && env.APP_VERSION == '1.0.8' }}
+        if: ${{ always() && (env.APP_VERSION == '1.0.8' || env.APP_VERSION == '1.0.9') }}
         run: |
           if [ -d build/Browsing.xcresult ]; then
             xcrun xcresulttool export attachments --path build/Browsing.xcresult --output-path build/editing-evidence || true
