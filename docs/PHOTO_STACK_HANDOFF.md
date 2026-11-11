@@ -1,4 +1,45 @@
-# Photo deck — 1.0.8 BUILD 114
+# Photo deck
+
+## 1.0.9 BUILD 115 — pile rebuilt from depth order
+
+The 1.0.9 request replaced the earlier two-phase exchange with one rule: swiping
+left carries the top sheet off to the left and back to the bottom of the pile
+while the next sheet rises; swiping right draws the bottom sheet up to the top.
+BUILD 114's snapshot substitutes and its visible return trip across the pile are
+gone.
+
+- `Drag.carrying` (finger left): the front sheet follows the finger, tilts and
+  fades slightly. Layers 1 and 2 interpolate one slot forward with an ease-out of
+  the same finger progress, so the next photo arrives during the gesture rather
+  than after the finger lifts.
+- On commit the sheet leaves the frame in 0.24 s (ease-in) and is recycled at
+  depth 2 at 0.26 s, fading back in over 0.18 s. It is never animated back across
+  the pile.
+- `Drag.lifting` (finger right): the buried sheet (depth 3) is the incoming one.
+  It waits below the pile (+26 pt, 0.90 scale), rises to the front slot while the
+  other three fall back one place, and the deepest visible sheet slides down and
+  fades out.
+- Depth order inside `cards` is the only state. No image view is created or
+  destroyed during a turn; `restack()` restores z-order = depth order.
+- A turn commits only when the projected translation passes max(34 pt, 18% of the
+  width); otherwise every layer springs back to its slot.
+- Untouched: hit testing on photo silhouettes only, tap-to-open, the zoom
+  transition, the position counter, reduce-motion switching without animation,
+  and the parent scroll's first refusal on horizontal drags.
+
+Verification: source 4a0a9a3, run
+https://github.com/adamnltwww/Afterimage/actions/runs/43043986779 , BUILD 115.
+Device Release compilation and packaging passed; 10 focused tests passed
+(PhotoStackTests 4, BrowsingRefinementTests 3, EnergyOptimizationTests 3).
+IPA `build/releases/1.0.9/AFTERIMAGE-1.0.9-build115.ipa`; 3,186,815 bytes;
+SHA256 `f1ccf4b157f98d0861b6e3f12191dd1658e5458f7a5467bb88b75a5e3ca2dff3`.
+
+Not verified: real-device gesture feel, 120 Hz ProMotion smoothness, whether the
+right-swipe rise reads as coming from under the pile on a real screen, and the
+moment the recycled sheet fades in at the back. Simulator geometry and colour
+fixtures are not visual acceptance.
+
+## 1.0.8 BUILD 114 — superseded
 
 ## Current status
 

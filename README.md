@@ -2,9 +2,9 @@
 
 <p align="center"><img src="Afterimage/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="120" alt="AFTERIMAGE 图标：暖金四角星与交叠光带" /></p>
 
-**最新源码：1.0.8 · BUILD 114**　[构建记录](https://github.com/adamnltwww/Afterimage/actions/runs/42829490345) · [照片叠放交接说明](docs/PHOTO_STACK_HANDOFF.md)
+**最新源码：1.0.9 · BUILD 115**　[构建记录](https://github.com/adamnltwww/Afterimage/actions/runs/43043986779) · [照片叠放交接说明](docs/PHOTO_STACK_HANDOFF.md)
 
-正式 Release 仍为 [1.0.1 · BUILD 99](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.1)。照片叠放动效尚未达到预期，本轮重做已暂停；编译与自动测试通过不代表视觉验收通过。
+正式 Release 仍为 [1.0.1 · BUILD 99](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.1)。照片叠放已按「左滑带走顶层、右滑把底层抽上来」重做，编译与专项测试通过；真机上的手感仍待确认。
 
 ![AFTERIMAGE — 那些留下来的瞬间](docs/afterimage-banner.svg)
 
@@ -60,7 +60,7 @@ AFTERIMAGE 是一款使用 SwiftUI 与 SwiftData 构建的原生 iPhone 记忆�
 
 ### 让照片完整展开
 
-主轴与瞬间详情使用可滑动的照片叠放。详情页点当前照片可全屏查看。叠放布局与翻动效果仍有待完善，本轮重做已暂停。
+主轴与瞬间详情使用可滑动的照片叠放。向左滑动，顶层照片被带走、退回叠放底部，下一张在手指还没松开时就升上来；向右滑动，底部的照片从叠放下面被抽到最前面。轻点当前照片可全屏查看。
 
 轻点照片进入全屏，可以双指缩放、放大后平移查看细节，再回到原来的阅读位置。无需把一组照片拆成多个瞬间。
 
@@ -126,7 +126,7 @@ App 图标采用墨黑与暖金，以四角星为中心，光带与半透明弧�
 1. 打开 [1.0.1 发布页](https://github.com/adamnltwww/Afterimage/releases/tag/v1.0.1)，下载 `AFTERIMAGE-1.0.1-build99.ipa`。
 2. 使用自己的签名方式安装到 iPhone；本项目开发时使用 iloader。
 
-最新开发构建为 [1.0.8 · BUILD 114](https://github.com/adamnltwww/Afterimage/actions/runs/42829490345)，10 项专项测试通过。Actions 安装包有保留期限；Release 页面保留正式发布的安装包。
+最新开发构建为 [1.0.9 · BUILD 115](https://github.com/adamnltwww/Afterimage/actions/runs/43043986779)，10 项专项测试通过。Actions 安装包有保留期限；Release 页面保留正式发布的安装包。
 
 构建产物是 **未签名的 arm64 IPA**，需要自行签名，不是 App Store 安装包。覆盖安装并保留现有数据时，请保持相同的 Bundle Identifier：`com.adamnltwww.afterimage`。备份重要记录后再更换安装环境。
 
@@ -167,4 +167,4 @@ project.yml       XcodeGen 配置
 
 ## 当前边界
 
-当前照片叠放重做已暂停，最后状态及未完成的视觉验收记录于 [交接说明](docs/PHOTO_STACK_HANDOFF.md)。地图、云端 AI、ECHO 与 DARKROOM 尚未纳入当前版本。新功能与界面变化以源码、构建结果和实际预览为准。
+照片叠放的当前实现、以及尚未完成的真机验收记录于 [交接说明](docs/PHOTO_STACK_HANDOFF.md)。地图、云端 AI、ECHO 与 DARKROOM 尚未纳入当前版本。新功能与界面变化以源码、构建结果和实际预览为准。
